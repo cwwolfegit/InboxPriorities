@@ -144,9 +144,12 @@ fun SenderRow(sender: PrioritySender) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(sender.senderAddress, fontWeight = FontWeight.Normal)
-        Badge {
-            Text("${sender.unreadCount}")
-        }
+        Text(sender.senderAddress, fontWeight = FontWeight.Normal,
+            color = MaterialTheme.colorScheme.primary)
+        Text(
+            "Total: ${sender.unreadCount}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }
