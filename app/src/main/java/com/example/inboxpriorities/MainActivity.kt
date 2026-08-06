@@ -25,6 +25,11 @@ class MainActivity : ComponentActivity() {
             //Log.d("PriorityTest", "Random email priority: $test4")
             // ----------------------------
 
+        // Add this temporarily in onCreate() in MainActivity.kt
+        MockDataRepository.getEvaluatedEmails().forEach { email ->
+            Log.d("PriorityCheck", "'${email.subject}' from ${email.sender} -> Priority: ${email.priorityLevel}")
+        }
+
         setContent {
             MaterialTheme {
                 Surface(

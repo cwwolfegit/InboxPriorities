@@ -66,4 +66,65 @@ object MockDataRepository {
             isEnabled = false
         )
     )
+
+    // --- Raw Email Mock Data ---
+
+    private val rawEmails = listOf(
+        Email(
+            id = "1",
+            sender = "boss@company.com",
+            subject = "Project Status",
+            body = "Need an update on the build.",
+            priorityLevel = PriorityLevel.NONE
+        ),
+        Email(
+            id = "2",
+            sender = "news@clientcorp.com",
+            subject = "Quarterly Report",
+            body = "Attached is the Q3 overview.",
+            priorityLevel = PriorityLevel.NONE
+        ),
+        Email(
+            id = "3",
+            sender = "friend@gmail.com",
+            subject = "URGENT: Lunch plans",
+            body = "Are we still meeting today?",
+            priorityLevel = PriorityLevel.NONE
+        ),
+        Email(
+            id = "4",
+            sender = "billing@service.com",
+            subject = "Monthly Invoice",
+            body = "Your invoice is ready for review.",
+            priorityLevel = PriorityLevel.NONE
+        ),
+        Email(
+            id = "5",
+            sender = "support@oldvendor.com",
+            subject = "System Maintenance",
+            body = "Scheduled downtime tonight.",
+            priorityLevel = PriorityLevel.NONE
+        ),
+        Email(
+            id = "6",
+            sender = "newsletter@random.com",
+            subject = "Weekly Digest",
+            body = "Here are the top stories of the week.",
+            priorityLevel = PriorityLevel.NONE
+        )
+    )
+
+    // --- Dynamic Priority Evaluation ---
+
+    /**
+     * Filters active rules and calculates the priority for each raw email
+     * on demand using the PriorityEvaluator logic.
+     */
+    fun getEvaluatedEmails(): List<Email> {
+        val activeRules = mockRules.filter { it.isEnabled }
+        return rawEmails.map { email ->
+            val calculatedPriority = PriorityEvaluator.evaluatePriority(email.sender, email.subject)
+            email.copy(priorityLevel = calculatedPriority)
+        }
+    }
 }

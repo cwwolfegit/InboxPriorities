@@ -18,7 +18,8 @@ enum class RuleType {
 enum class PriorityLevel {
     HIGH,
     MEDIUM,
-    LOW
+    LOW,
+    NONE
 }
 
 /**

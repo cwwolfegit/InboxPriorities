@@ -19,7 +19,7 @@ object PriorityEvaluator {
         for (rule in activeRules) {
             when (rule.ruleType) {
                 RuleType.SENDER_CONTAINS -> {
-                    if (senderEmail.equals(rule.matchPattern, ignoreCase = true)) {
+                    if (senderEmail.contains(rule.matchPattern, ignoreCase = true)) {
                         return rule.priorityLevel
                     }
                 }
@@ -32,6 +32,6 @@ object PriorityEvaluator {
         }
 
         // Default priority if no rules match
-        return PriorityLevel.LOW
+        return PriorityLevel.NONE
     }
 }
