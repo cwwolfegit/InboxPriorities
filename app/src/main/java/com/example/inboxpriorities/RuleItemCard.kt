@@ -1,10 +1,13 @@
 package com.example.inboxpriorities
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -15,9 +18,18 @@ fun RuleItemCard(
     onToggleEnable: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Dim the card when the rule is turned off
+    val cardAlpha = if (rule.isEnabled) 1.0f else 0.5f
+
     Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = modifier
+            .fillMaxWidth()
+            .alpha(cardAlpha),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -37,17 +49,25 @@ fun RuleItemCard(
                     fontWeight = FontWeight.Bold
                 )
 
+                // Human-readable rule type display
+                val ruleTypeLabel = when (rule.ruleType) {
+                    RuleType.SENDER_CONTAINS -> "Sender contains"
+                    RuleType.SUBJECT_CONTAINS -> "Subject contains"
+                }
+
                 Text(
-                    text = "Pattern: \"${rule.matchPattern}\"",
+                    text = "$ruleTypeLabel \"${rule.matchPattern}\"",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                Spacer(modifier = Modifier.height(2.dp))
 
                 // Priority Badge Chip
                 PriorityBadge(priorityLevel = rule.priorityLevel)
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             // Right Side: Active Switch
             Switch(
@@ -61,22 +81,22 @@ fun RuleItemCard(
 @Composable
 private fun PriorityBadge(priorityLevel: PriorityLevel) {
     val (backgroundColor, contentColor) = when (priorityLevel) {
-        PriorityLevel.HIGH -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
-        PriorityLevel.MEDIUM -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
-        PriorityLevel.LOW -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
-        PriorityLevel.NONE -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+        PriorityLevel.HIGH -> Color(0xFFFFEBEE) to Color(0xFFC62828)   // Soft Red / Dark Red
+        PriorityLevel.MEDIUM -> Color(0xFFFFF3E0) to Color(0xFFE65100) // Soft Amber / Dark Orange
+        PriorityLevel.LOW -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)    // Soft Green / Dark Green
+        PriorityLevel.NONE -> Color(0xFFF5F5F5) to Color(0xFF616161)   // Light Gray / Dark Gray
     }
 
     Surface(
         color = backgroundColor,
         contentColor = contentColor,
-        shape = MaterialTheme.shapes.extraSmall
+        shape = RoundedCornerShape(8.dp)
     ) {
         Text(
             text = priorityLevel.name,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
         )
     }
 }

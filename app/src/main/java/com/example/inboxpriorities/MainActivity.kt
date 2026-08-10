@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
 enum class AppScreen { DASHBOARD, RULES }
@@ -16,7 +15,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                var currentScreen by remember { mutableStateOf(AppScreen.RULES) }
+                var currentScreen by remember { mutableStateOf(AppScreen.DASHBOARD) }
 
                 var rules by remember {
                     mutableStateOf(
@@ -27,8 +26,58 @@ class MainActivity : ComponentActivity() {
                                 matchPattern = "@client.com",
                                 priorityLevel = PriorityLevel.HIGH,
                                 isEnabled = true
+                            ),
+                            PriorityRule(
+                                name = "Digest Updates",
+                                ruleType = RuleType.SUBJECT_CONTAINS,
+                                matchPattern = "Digest",
+                                priorityLevel = PriorityLevel.MEDIUM,
+                                isEnabled = true
                             )
                         )
+                    )
+                }
+
+                // Raw incoming sample emails matching the Email data class
+                val rawEmails = remember {
+                    listOf(
+                        Email(
+                            id = "1",
+                            sender = "Acme Client Corp",
+                            senderAddress = "john@client.com",
+                            subject = "Project Deliverables Review",
+                            body = "Please find attached the latest project updates for review...",
+                            timestamp = "10:15 AM"
+                        ),
+                        Email(
+                            id = "2",
+                            sender = "Dev Digest",
+                            senderAddress = "newsletter@devdigest.com",
+                            subject = "Weekly Android Development Digest",
+                            body = "Learn what's new in Jetpack Compose and Kotlin Multiplatform...",
+                            timestamp = "9:00 AM"
+                        ),
+                        Email(
+                            id = "3",
+                            sender = "General Inquiry",
+                            senderAddress = "hello@randomsite.org",
+                            subject = "Quick Question about your App",
+                            body = "Hi team, I had a question regarding user pricing...",
+                            timestamp = "Yesterday"
+                        )
+                    )
+                }
+
+                // Dynamically evaluate each email against active rules
+                val evaluatedEmails = rawEmails.map { EmailItem ->
+                    val result = PriorityEvaluator.evaluatePriority(
+                        sender = EmailItem.senderAddress.ifEmpty { EmailItem.sender },
+                        subject = EmailItem.subject,
+                        rules = rules
+                    )
+                    EmailItem.copy(
+                        priorityLevel = result.first,
+                        matchedRuleName = result.second
                     )
                 }
 
@@ -52,7 +101,7 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding)) {
                         when (currentScreen) {
-                            AppScreen.DASHBOARD -> DashboardPlaceholder()
+                            AppScreen.DASHBOARD -> DashboardScreen(emails = evaluatedEmails)
                             AppScreen.RULES -> RulesScreen(
                                 rules = rules,
                                 onToggleRule = { toggledRule, isEnabled ->
@@ -76,15 +125,5 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-}
-
-@Composable
-fun DashboardPlaceholder() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Dashboard Feed Coming Soon!", style = MaterialTheme.typography.titleMedium)
     }
 }

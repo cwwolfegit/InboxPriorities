@@ -130,7 +130,7 @@ object MockDataRepository {
                 sender = email.sender,
                 subject = email.subject,
                 rules = activeRules
-            )
+            ).first
             email.copy(priorityLevel = calculatedPriority)
         }
     }

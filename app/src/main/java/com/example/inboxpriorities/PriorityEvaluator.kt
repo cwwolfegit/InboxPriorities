@@ -4,26 +4,31 @@ object PriorityEvaluator {
 
     /**
      * Evaluates incoming email details against active priority rules.
-     * Returns the matching PriorityLevel, or LOW if no active rule matches.
+     * Returns a Pair containing the PriorityLevel and the matched rule's name (or null if no match).
      */
     fun evaluatePriority(
         sender: String,
         subject: String,
         rules: List<PriorityRule> = MockDataRepository.mockRules
-
-    ): PriorityLevel {
-        // Iterate only through the rules passed into this function
+    ): Pair<PriorityLevel, String?> {
         for (rule in rules) {
-            if (ruleMatches(rule, sender, subject)) { // Or your specific rule-matching logic
-                return rule.priorityLevel
+            // 1. Skip disabled rules
+            if (!rule.isEnabled) continue
+
+            // 2. Check match based on ruleType
+            if (ruleMatches(rule, sender, subject)) {
+                return Pair(rule.priorityLevel, rule.name)
             }
         }
-        return PriorityLevel.NONE
+
+        // 3. Fallback when no active rule matches
+        return Pair(PriorityLevel.NONE, null)
     }
 
     private fun ruleMatches(rule: PriorityRule, sender: String, subject: String): Boolean {
-        // Your matching logic (e.g., checking rule matchPattern against sender/subject)
-        return sender.contains(rule.matchPattern, ignoreCase = true) ||
-                subject.contains(rule.matchPattern, ignoreCase = true)
+        return when (rule.ruleType) {
+            RuleType.SENDER_CONTAINS -> sender.contains(rule.matchPattern, ignoreCase = true)
+            RuleType.SUBJECT_CONTAINS -> subject.contains(rule.matchPattern, ignoreCase = true)
+        }
     }
 }
