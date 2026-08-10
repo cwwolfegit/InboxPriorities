@@ -121,9 +121,16 @@ object MockDataRepository {
      * on demand using the PriorityEvaluator logic.
      */
     fun getEvaluatedEmails(): List<Email> {
+        // 1. Keep only enabled rules
         val activeRules = mockRules.filter { it.isEnabled }
+
+        // 2. Pass activeRules into the evaluator for each email
         return rawEmails.map { email ->
-            val calculatedPriority = PriorityEvaluator.evaluatePriority(email.sender, email.subject)
+            val calculatedPriority = PriorityEvaluator.evaluatePriority(
+                sender = email.sender,
+                subject = email.subject,
+                rules = activeRules
+            )
             email.copy(priorityLevel = calculatedPriority)
         }
     }
