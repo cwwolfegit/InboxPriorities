@@ -68,6 +68,12 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onAddRule = { name, pattern, ruleType, priority ->
                                     viewModel.addRule(name, pattern, ruleType, priority)
+                                },
+                                onUpdateRule = { oldRule, newRule ->
+                                    viewModel.updateRule(oldRule, newRule)
+                                },
+                                onDeleteRule = { ruleToDelete ->
+                                    viewModel.deleteRule(ruleToDelete)
                                 }
                             )
                         }

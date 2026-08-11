@@ -16,9 +16,10 @@ import androidx.compose.ui.unit.dp
 fun RuleItemCard(
     rule: PriorityRule,
     onToggleEnable: (Boolean) -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Dim the card when the rule is turned off
     val cardAlpha = if (rule.isEnabled) 1.0f else 0.5f
 
     Card(
@@ -49,7 +50,6 @@ fun RuleItemCard(
                     fontWeight = FontWeight.Bold
                 )
 
-                // Human-readable rule type display
                 val ruleTypeLabel = when (rule.ruleType) {
                     RuleType.SENDER_CONTAINS -> "Sender contains"
                     RuleType.SUBJECT_CONTAINS -> "Subject contains"
@@ -63,17 +63,29 @@ fun RuleItemCard(
 
                 Spacer(modifier = Modifier.height(2.dp))
 
-                // Priority Badge Chip
                 PriorityBadge(priorityLevel = rule.priorityLevel)
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            // Right Side: Active Switch
-            Switch(
-                checked = rule.isEnabled,
-                onCheckedChange = onToggleEnable
-            )
+            // Right Side: Action Buttons & Toggle Switch
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                IconButton(onClick = onEditClick) {
+                    Text("✏️", style = MaterialTheme.typography.titleMedium)
+                }
+
+                IconButton(onClick = onDeleteClick) {
+                    Text("🗑️", style = MaterialTheme.typography.titleMedium)
+                }
+
+                Switch(
+                    checked = rule.isEnabled,
+                    onCheckedChange = onToggleEnable
+                )
+            }
         }
     }
 }
@@ -81,10 +93,10 @@ fun RuleItemCard(
 @Composable
 private fun PriorityBadge(priorityLevel: PriorityLevel) {
     val (backgroundColor, contentColor) = when (priorityLevel) {
-        PriorityLevel.HIGH -> Color(0xFFFFEBEE) to Color(0xFFC62828)   // Soft Red / Dark Red
-        PriorityLevel.MEDIUM -> Color(0xFFFFF3E0) to Color(0xFFE65100) // Soft Amber / Dark Orange
-        PriorityLevel.LOW -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)    // Soft Green / Dark Green
-        PriorityLevel.NONE -> Color(0xFFF5F5F5) to Color(0xFF616161)   // Light Gray / Dark Gray
+        PriorityLevel.HIGH -> Color(0xFFFFEBEE) to Color(0xFFC62828)
+        PriorityLevel.MEDIUM -> Color(0xFFFFF3E0) to Color(0xFFE65100)
+        PriorityLevel.LOW -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
+        PriorityLevel.NONE -> Color(0xFFF5F5F5) to Color(0xFF616161)
     }
 
     Surface(
@@ -115,7 +127,9 @@ private fun RuleItemCardPreview() {
         Box(modifier = Modifier.padding(16.dp)) {
             RuleItemCard(
                 rule = sampleRule,
-                onToggleEnable = {}
+                onToggleEnable = {},
+                onEditClick = {},
+                onDeleteClick = {}
             )
         }
     }

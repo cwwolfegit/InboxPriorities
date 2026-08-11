@@ -17,11 +17,15 @@ fun RulesScreen(
     rules: List<PriorityRule>,
     onToggleRule: (PriorityRule, Boolean) -> Unit,
     onAddRule: (name: String, pattern: String, ruleType: RuleType, priorityLevel: PriorityLevel) -> Unit,
+    onUpdateRule: (oldRule: PriorityRule, newRule: PriorityRule) -> Unit,
+    onDeleteRule: (PriorityRule) -> Unit,
     modifier: Modifier = Modifier,
     isProUser: Boolean = false,
     freeRuleLimit: Int = 10
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
+    var ruleToEdit by remember { mutableStateOf<PriorityRule?>(null) }
+
     val activeRulesCount = rules.count { it.isEnabled }
     val totalRulesCount = rules.size
     val isLimitReached = !isProUser && totalRulesCount >= freeRuleLimit
@@ -29,65 +33,83 @@ fun RulesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Priority Rules") },
-                actions = {
-                    Surface(
-                        color = if (isLimitReached) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
-                        shape = MaterialTheme.shapes.small,
-                        modifier = Modifier.padding(end = 16.dp)
-                    ) {
-                        Text(
-                            text = if (isProUser) "Pro (Unlimited)" else "$activeRulesCount / $totalRulesCount Active",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            color = if (isLimitReached) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = {
-                    if (!isLimitReached) {
-                        showAddDialog = true
-                    }
-                },
-                icon = { Text("+", style = MaterialTheme.typography.titleLarge) },
-                text = { Text(if (isLimitReached) "Upgrade to Add More" else "Add Rule") },
-                containerColor = if (isLimitReached) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                title = { Text("Priority Rules") }
             )
         },
         modifier = modifier
     ) { innerPadding ->
-        if (rules.isEmpty()) {
-            Box(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            // Prominent Action Header Bar
+            Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "No rules created yet.\nTap '+' below to add one!",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp)
-            ) {
-                items(rules) { rule ->
-                    RuleItemCard(
-                        rule = rule,
-                        onToggleEnable = { isChecked -> onToggleRule(rule, isChecked) }
+                // Active Count Badge
+                Surface(
+                    color = if (isLimitReached) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        text = if (isProUser) "Pro (Unlimited)" else "$activeRulesCount / $totalRulesCount Active",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        color = if (isLimitReached) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
                     )
+                }
+
+                // High-visibility "+ Add Rule" Button
+                Button(
+                    onClick = {
+                        if (!isLimitReached) {
+                            showAddDialog = true
+                        }
+                    },
+                    enabled = !isLimitReached,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = if (isLimitReached) "Limit Reached" else "+ Add Rule",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            if (rules.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No rules created yet.\nTap '+ Add Rule' above to add one!",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f) // <-- Fixes scroll bounds inside Column
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
+                ) {
+                    items(rules) { rule ->
+                        RuleItemCard(
+                            rule = rule,
+                            onToggleEnable = { isChecked -> onToggleRule(rule, isChecked) },
+                            onEditClick = { ruleToEdit = rule },
+                            onDeleteClick = { onDeleteRule(rule) }
+                        )
+                    }
                 }
             }
         }
@@ -102,29 +124,23 @@ fun RulesScreen(
                 }
             )
         }
-    }
-}
 
-@Preview(showBackground = true)
-@Composable
-private fun RulesScreenPreview() {
-    val sampleRules = listOf(
-        PriorityRule(
-            name = "Client Emails",
-            ruleType = RuleType.SENDER_CONTAINS,
-            matchPattern = "@client.com",
-            priorityLevel = PriorityLevel.HIGH,
-            isEnabled = true
-        )
-    )
-
-    MaterialTheme {
-        RulesScreen(
-            rules = sampleRules,
-            onToggleRule = { _, _ -> },
-            onAddRule = { _, _, _, _ -> },
-            isProUser = false,
-            freeRuleLimit = 10
-        )
+        // Show Dialog when user taps Edit (✏️) on a card
+        ruleToEdit?.let { targetRule ->
+            AddEditRuleDialog(
+                ruleToEdit = targetRule,
+                onDismissRequest = { ruleToEdit = null },
+                onSaveRule = { name, pattern, ruleType, priority ->
+                    val updatedRule = targetRule.copy(
+                        name = name,
+                        matchPattern = pattern,
+                        ruleType = ruleType,
+                        priorityLevel = priority
+                    )
+                    onUpdateRule(targetRule, updatedRule)
+                    ruleToEdit = null
+                }
+            )
+        }
     }
 }

@@ -4,60 +4,48 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditRuleDialog(
+    ruleToEdit: PriorityRule? = null,
     onDismissRequest: () -> Unit,
-    onSaveRule: (name: String, pattern: String, ruleType: RuleType, priorityLevel: PriorityLevel) -> Unit,
-    modifier: Modifier = Modifier,
-    initialRule: PriorityRule? = null
+    onSaveRule: (name: String, pattern: String, ruleType: RuleType, priorityLevel: PriorityLevel) -> Unit
 ) {
-    var name by remember { mutableStateOf(initialRule?.name ?: "") }
-    var matchPattern by remember { mutableStateOf(initialRule?.matchPattern ?: "") }
-    var selectedRuleType by remember { mutableStateOf(initialRule?.ruleType ?: RuleType.SENDER_CONTAINS) }
-    var selectedPriority by remember { mutableStateOf(initialRule?.priorityLevel ?: PriorityLevel.HIGH) }
+    var name by remember { mutableStateOf(ruleToEdit?.name ?: "") }
+    var matchPattern by remember { mutableStateOf(ruleToEdit?.matchPattern ?: "") }
+    var selectedRuleType by remember { mutableStateOf(ruleToEdit?.ruleType ?: RuleType.SENDER_CONTAINS) }
+    var selectedPriority by remember { mutableStateOf(ruleToEdit?.priorityLevel ?: PriorityLevel.HIGH) }
 
-    val isInputValid = name.isNotBlank() && matchPattern.isNotBlank()
+    val isEditing = ruleToEdit != null
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text(text = if (initialRule == null) "Add Priority Rule" else "Edit Priority Rule") },
+        title = { Text(text = if (isEditing) "Edit Priority Rule" else "Add Priority Rule") },
         text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Rule Name Field
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Rule Name") },
-                    placeholder = { Text("e.g. Client Emails") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Match Pattern Field
                 OutlinedTextField(
                     value = matchPattern,
                     onValueChange = { matchPattern = it },
-                    label = { Text("Match Pattern") },
-                    placeholder = { Text("e.g. @client.com") },
+                    label = { Text("Match Pattern (e.g. @client.com)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Rule Type Selection
-                Text("Rule Type:", style = MaterialTheme.typography.labelMedium)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Text(
+                    text = "Rule Type",
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = selectedRuleType == RuleType.SENDER_CONTAINS,
                         onClick = { selectedRuleType = RuleType.SENDER_CONTAINS },
@@ -70,14 +58,12 @@ fun AddEditRuleDialog(
                     )
                 }
 
-                // Priority Level Selection
-                Text("Priority Level:", style = MaterialTheme.typography.labelMedium)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val levels = listOf(PriorityLevel.HIGH, PriorityLevel.MEDIUM, PriorityLevel.LOW)
-                    levels.forEach { level ->
+                Text(
+                    text = "Priority Level",
+                    style = MaterialTheme.typography.labelLarge
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PriorityLevel.entries.filter { it != PriorityLevel.NONE }.forEach { level ->
                         FilterChip(
                             selected = selectedPriority == level,
                             onClick = { selectedPriority = level },
@@ -88,33 +74,19 @@ fun AddEditRuleDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
+                enabled = name.isNotBlank() && matchPattern.isNotBlank(),
                 onClick = {
-                    if (isInputValid) {
-                        onSaveRule(name, matchPattern, selectedRuleType, selectedPriority)
-                    }
-                },
-                enabled = isInputValid
+                    onSaveRule(name, matchPattern, selectedRuleType, selectedPriority)
+                }
             ) {
-                Text("Save")
+                Text(if (isEditing) "Update" else "Save")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismissRequest) {
                 Text("Cancel")
             }
-        },
-        modifier = modifier
+        }
     )
-}
-
-@Preview
-@Composable
-private fun AddEditRuleDialogPreview() {
-    MaterialTheme {
-        AddEditRuleDialog(
-            onDismissRequest = {},
-            onSaveRule = { _, _, _, _ -> }
-        )
-    }
 }
