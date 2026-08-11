@@ -19,11 +19,12 @@ fun RulesScreen(
     onAddRule: (name: String, pattern: String, ruleType: RuleType, priorityLevel: PriorityLevel) -> Unit,
     modifier: Modifier = Modifier,
     isProUser: Boolean = false,
-    freeRuleLimit: Int = 3
+    freeRuleLimit: Int = 10
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     val activeRulesCount = rules.count { it.isEnabled }
-    val isLimitReached = !isProUser && rules.size >= freeRuleLimit
+    val totalRulesCount = rules.size
+    val isLimitReached = !isProUser && totalRulesCount >= freeRuleLimit
 
     Scaffold(
         topBar = {
@@ -36,7 +37,7 @@ fun RulesScreen(
                         modifier = Modifier.padding(end = 16.dp)
                     ) {
                         Text(
-                            text = if (isProUser) "Pro (Unlimited)" else "$activeRulesCount / $freeRuleLimit Active",
+                            text = if (isProUser) "Pro (Unlimited)" else "$activeRulesCount / $totalRulesCount Active",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -123,7 +124,7 @@ private fun RulesScreenPreview() {
             onToggleRule = { _, _ -> },
             onAddRule = { _, _, _, _ -> },
             isProUser = false,
-            freeRuleLimit = 3
+            freeRuleLimit = 10
         )
     }
 }

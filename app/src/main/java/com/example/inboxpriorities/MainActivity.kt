@@ -3,6 +3,7 @@ package com.example.inboxpriorities
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,74 +12,32 @@ import androidx.compose.ui.Modifier
 enum class AppScreen { DASHBOARD, RULES }
 
 class MainActivity : ComponentActivity() {
+
+    private val viewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
                 var currentScreen by remember { mutableStateOf(AppScreen.DASHBOARD) }
 
-                var rules by remember {
-                    mutableStateOf(
-                        listOf(
-                            PriorityRule(
-                                name = "Client Emails",
-                                ruleType = RuleType.SENDER_CONTAINS,
-                                matchPattern = "@client.com",
-                                priorityLevel = PriorityLevel.HIGH,
-                                isEnabled = true
-                            ),
-                            PriorityRule(
-                                name = "Digest Updates",
-                                ruleType = RuleType.SUBJECT_CONTAINS,
-                                matchPattern = "Digest",
-                                priorityLevel = PriorityLevel.MEDIUM,
-                                isEnabled = true
-                            )
-                        )
-                    )
-                }
+                // Collect state streams from ViewModel
+                val rules by viewModel.rules.collectAsState()
+                val rawEmails by viewModel.rawEmails.collectAsState()
 
-                // Raw incoming sample emails matching the Email data class
-                val rawEmails = remember {
-                    listOf(
-                        Email(
-                            id = "1",
-                            sender = "Acme Client Corp",
-                            senderAddress = "john@client.com",
-                            subject = "Project Deliverables Review",
-                            body = "Please find attached the latest project updates for review...",
-                            timestamp = "10:15 AM"
-                        ),
-                        Email(
-                            id = "2",
-                            sender = "Dev Digest",
-                            senderAddress = "newsletter@devdigest.com",
-                            subject = "Weekly Android Development Digest",
-                            body = "Learn what's new in Jetpack Compose and Kotlin Multiplatform...",
-                            timestamp = "9:00 AM"
-                        ),
-                        Email(
-                            id = "3",
-                            sender = "General Inquiry",
-                            senderAddress = "hello@randomsite.org",
-                            subject = "Quick Question about your App",
-                            body = "Hi team, I had a question regarding user pricing...",
-                            timestamp = "Yesterday"
+                // Dynamically evaluate incoming emails
+                val evaluatedEmails = remember(rawEmails, rules) {
+                    rawEmails.map { email ->
+                        val result = PriorityEvaluator.evaluatePriority(
+                            sender = email.senderAddress.ifEmpty { email.sender },
+                            subject = email.subject,
+                            rules = rules
                         )
-                    )
-                }
-
-                // Dynamically evaluate each email against active rules
-                val evaluatedEmails = rawEmails.map { EmailItem ->
-                    val result = PriorityEvaluator.evaluatePriority(
-                        sender = EmailItem.senderAddress.ifEmpty { EmailItem.sender },
-                        subject = EmailItem.subject,
-                        rules = rules
-                    )
-                    EmailItem.copy(
-                        priorityLevel = result.first,
-                        matchedRuleName = result.second
-                    )
+                        email.copy(
+                            priorityLevel = result.first,
+                            matchedRuleName = result.second
+                        )
+                    }
                 }
 
                 Scaffold(
@@ -105,19 +64,10 @@ class MainActivity : ComponentActivity() {
                             AppScreen.RULES -> RulesScreen(
                                 rules = rules,
                                 onToggleRule = { toggledRule, isEnabled ->
-                                    rules = rules.map { rule ->
-                                        if (rule == toggledRule) rule.copy(isEnabled = isEnabled) else rule
-                                    }
+                                    viewModel.toggleRule(toggledRule, isEnabled)
                                 },
                                 onAddRule = { name, pattern, ruleType, priority ->
-                                    val newRule = PriorityRule(
-                                        name = name,
-                                        ruleType = ruleType,
-                                        matchPattern = pattern,
-                                        priorityLevel = priority,
-                                        isEnabled = true
-                                    )
-                                    rules = rules + newRule
+                                    viewModel.addRule(name, pattern, ruleType, priority)
                                 }
                             )
                         }

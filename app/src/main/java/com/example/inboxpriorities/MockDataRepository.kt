@@ -69,7 +69,7 @@ object MockDataRepository {
 
     // --- Raw Email Mock Data ---
 
-    private val rawEmails = listOf(
+    val mockEmails = listOf(
         Email(
             id = "1",
             sender = "boss@company.com",
@@ -125,7 +125,7 @@ object MockDataRepository {
         val activeRules = mockRules.filter { it.isEnabled }
 
         // 2. Pass activeRules into the evaluator for each email
-        return rawEmails.map { email ->
+        return mockEmails.map { email ->
             val calculatedPriority = PriorityEvaluator.evaluatePriority(
                 sender = email.sender,
                 subject = email.subject,
