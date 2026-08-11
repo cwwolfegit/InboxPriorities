@@ -1,10 +1,12 @@
 package com.example.inboxpriorities
 
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
 /**
  * Defines what email attribute to evaluate for priority matching.
  */
+@Serializable
 enum class RuleType {
     SENDER_CONTAINS,  // Matches substring anywhere in sender email address
     SUBJECT_CONTAINS, // Matches substring in subject line
@@ -15,6 +17,7 @@ enum class RuleType {
 /**
  * Defines the priority severity assigned when a rule matches.
  */
+@Serializable
 enum class PriorityLevel {
     HIGH,
     MEDIUM,
@@ -25,6 +28,7 @@ enum class PriorityLevel {
 /**
  * Data model representing an individual priority match rule.
  */
+@Serializable
 data class PriorityRule(
     val id: String = UUID.randomUUID().toString(),
     val name: String,

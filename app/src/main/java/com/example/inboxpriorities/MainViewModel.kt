@@ -1,42 +1,60 @@
 package com.example.inboxpriorities
 
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.util.UUID
 
-class MainViewModel : ViewModel() {
+class MainViewModel(private val repository: RulesRepository) : ViewModel() {
 
-    // Manage Rules state
-    private val _rules = MutableStateFlow<List<PriorityRule>>(MockDataRepository.mockRules)
-    val rules: StateFlow<List<PriorityRule>> = _rules.asStateFlow()
+    // Automatically emits rules loaded from DataStore
+    val rules: StateFlow<List<PriorityRule>> = repository.rulesFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
-    // Manage Emails state
-    private val _rawEmails = MutableStateFlow<List<Email>>(MockDataRepository.mockEmails)
-    val rawEmails: StateFlow<List<Email>> = _rawEmails.asStateFlow()
-
-    fun toggleRule(toggledRule: PriorityRule, isEnabled: Boolean) {
-        _rules.value = _rules.value.map { rule ->
-            if (rule == toggledRule) rule.copy(isEnabled = isEnabled) else rule
+    fun toggleRule(ruleToToggle: PriorityRule, isEnabled: Boolean) {
+        viewModelScope.launch {
+            val updatedList = rules.value.map { rule ->
+                if (rule.id == ruleToToggle.id) rule.copy(isEnabled = isEnabled) else rule
+            }
+            repository.saveRules(updatedList)
         }
     }
 
-    fun addRule(name: String, pattern: String, ruleType: RuleType, priority: PriorityLevel) {
-        val newRule = PriorityRule(
-            name = name,
-            ruleType = ruleType,
-            matchPattern = pattern,
-            priorityLevel = priority,
-            isEnabled = true
-        )
-        _rules.value = _rules.value + newRule
+    fun addRule(name: String, pattern: String, ruleType: RuleType, priorityLevel: PriorityLevel) {
+        viewModelScope.launch {
+            val newRule = PriorityRule(
+                id = UUID.randomUUID().toString(),
+                name = name,
+                matchPattern = pattern,
+                ruleType = ruleType,
+                priorityLevel = priorityLevel,
+                isEnabled = true
+            )
+            val updatedList = rules.value + newRule
+            repository.saveRules(updatedList)
+        }
     }
 
-    fun updateRule(oldRule: PriorityRule, updatedRule: PriorityRule) {
-        _rules.value = _rules.value.map { if (it == oldRule) updatedRule else it }
+    fun updateRule(oldRule: PriorityRule, newRule: PriorityRule) {
+        viewModelScope.launch {
+            val updatedList = rules.value.map { rule ->
+                if (rule.id == oldRule.id) newRule else rule
+            }
+            repository.saveRules(updatedList)
+        }
     }
 
     fun deleteRule(ruleToDelete: PriorityRule) {
-        _rules.value = _rules.value.filter { it != ruleToDelete }
+        viewModelScope.launch {
+            val updatedList = rules.value.filterNot { it.id == ruleToDelete.id }
+            repository.saveRules(updatedList)
+        }
     }
 }
