@@ -94,6 +94,21 @@ fun RulesScreen(
                     )
                 }
             } else {
+                // Sort rules: Enabled first, then HIGH -> MEDIUM -> LOW -> NONE
+                val sortedRules = remember(rules) {
+                    rules.sortedWith(
+                        compareByDescending<PriorityRule> { it.isEnabled }
+                            .thenByDescending { rule ->
+                                when (rule.priorityLevel) {
+                                    PriorityLevel.HIGH -> 3
+                                    PriorityLevel.MEDIUM -> 2
+                                    PriorityLevel.LOW -> 1
+                                    PriorityLevel.NONE -> 0
+                                }
+                            }
+                    )
+                }
+
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -102,7 +117,10 @@ fun RulesScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
                 ) {
-                    items(rules) { rule ->
+                    items(
+                        items = sortedRules,
+                        key = { rule -> rule.id }
+                    ) { rule ->
                         RuleItemCard(
                             rule = rule,
                             onToggleEnable = { isChecked -> onToggleRule(rule, isChecked) },

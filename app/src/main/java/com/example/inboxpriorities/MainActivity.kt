@@ -66,7 +66,10 @@ class MainActivity : ComponentActivity() {
                     ) {
                         when (selectedTab) {
                             AppTab.DASHBOARD -> {
-                                DashboardScreen(emails = MockDataRepository.getEvaluatedEmails())
+                                DashboardScreen(
+                                    emails = MockDataRepository.mockEmails,
+                                    rules = rules
+                                )
                             }
                             AppTab.RULES -> {
                                 RulesScreen(

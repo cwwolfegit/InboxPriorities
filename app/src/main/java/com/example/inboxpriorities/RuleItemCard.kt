@@ -91,11 +91,11 @@ fun RuleItemCard(
 }
 
 @Composable
-private fun PriorityBadge(priorityLevel: PriorityLevel) {
+fun PriorityBadge(priorityLevel: PriorityLevel) {
     val (backgroundColor, contentColor) = when (priorityLevel) {
         PriorityLevel.HIGH -> Color(0xFFFFEBEE) to Color(0xFFC62828)
-        PriorityLevel.MEDIUM -> Color(0xFFFFF3E0) to Color(0xFFE65100)
-        PriorityLevel.LOW -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
+        PriorityLevel.MEDIUM -> Color(0xFFFFF3E0) to Color(0xFFEF6C00)
+        PriorityLevel.LOW -> Color(0xFFE3F2FD) to Color(0xFF1565C0)
         PriorityLevel.NONE -> Color(0xFFF5F5F5) to Color(0xFF616161)
     }
 

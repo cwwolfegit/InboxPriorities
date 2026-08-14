@@ -9,7 +9,7 @@ object PriorityEvaluator {
     fun evaluatePriority(
         sender: String,
         subject: String,
-        rules: List<PriorityRule> = MockDataRepository.mockRules
+        rules: List<PriorityRule> = emptyList()
     ): Pair<PriorityLevel, String?> {
         for (rule in rules) {
             // 1. Skip disabled rules
