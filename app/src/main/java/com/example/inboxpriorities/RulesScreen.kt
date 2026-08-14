@@ -30,6 +30,9 @@ fun RulesScreen(
     val totalRulesCount = rules.size
     val isLimitReached = !isProUser && totalRulesCount >= freeRuleLimit
 
+    // State to hold the rule pending deletion (null when dialog is closed)
+    var ruleToDelete by remember { mutableStateOf<PriorityRule?>(null) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -125,7 +128,7 @@ fun RulesScreen(
                             rule = rule,
                             onToggleEnable = { isChecked -> onToggleRule(rule, isChecked) },
                             onEditClick = { ruleToEdit = rule },
-                            onDeleteClick = { onDeleteRule(rule) }
+                            onDeleteClick = { ruleToDelete = rule }
                         )
                     }
                 }
@@ -161,4 +164,60 @@ fun RulesScreen(
             )
         }
     }
+    // Shows the dialog whenever ruleToDelete is non-null
+    ruleToDelete?.let { rule ->
+        DeleteRuleConfirmationDialog(
+            rule = rule,
+            onConfirmDelete = {
+                onDeleteRule(rule)
+                ruleToDelete = null
+            },
+            onDismiss = {
+                ruleToDelete = null
+            }
+        )
+    }
 }
+
+@Composable
+fun DeleteRuleConfirmationDialog(
+    rule: PriorityRule,
+    onConfirmDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Delete Priority Rule",
+                style = MaterialTheme.typography.titleMedium
+            )
+        },
+        text = {
+            Text(
+                text = "Are you sure you want to delete \"${rule.name}\"? This action cannot be undone.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirmDelete()
+                    onDismiss()
+                }
+            ) {
+                Text(
+                    text = "Delete",
+                    color = MaterialTheme.colorScheme.error, // Red text for destructive action
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Cancel")
+            }
+        }
+    )
+}
+
