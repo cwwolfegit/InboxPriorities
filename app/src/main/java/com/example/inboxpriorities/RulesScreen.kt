@@ -21,7 +21,7 @@ fun RulesScreen(
     onDeleteRule: (PriorityRule) -> Unit,
     modifier: Modifier = Modifier,
     isProUser: Boolean = false,
-    freeRuleLimit: Int = 10
+    freeRuleLimit: Int = 3
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var ruleToEdit by remember { mutableStateOf<PriorityRule?>(null) }
@@ -36,7 +36,7 @@ fun RulesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Priority Rules") }
+                title = { Text("Rules") }
             )
         },
         modifier = modifier
@@ -83,15 +83,25 @@ fun RulesScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
+
+                if (isLimitReached) {
+                    Text(
+                        text = "Free tier limit of $freeRuleLimit rules reached.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
 
             if (rules.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No rules created yet.\nTap '+ Add Rule' above to add one!",
+                        text = "No priority rules created yet.\nTap '+ Add Rule' above to add one!",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
