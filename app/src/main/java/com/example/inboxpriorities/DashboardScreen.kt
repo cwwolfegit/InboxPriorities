@@ -108,12 +108,29 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val providerLabel = account.provider.name.lowercase().replaceFirstChar { it.uppercase() }
+                    val titleText = if (account.nickname.isNotBlank()) {
+                        "${account.nickname} ($providerLabel)"
+                    } else {
+                        account.emailAddress
+                    }
+                    //}
                     Column {
                         Text(
-                            text = account.emailAddress,
+                            text = titleText,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
+
+                        // Show email address as secondary text if nickname is present
+                        if (account.nickname.isNotBlank()) {
+                            Text(
+                                text = account.emailAddress,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
                         Text(
                             text = "${account.unreadTotal} unread total",
                             style = MaterialTheme.typography.bodySmall,

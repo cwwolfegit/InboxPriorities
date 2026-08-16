@@ -22,6 +22,7 @@ class AccountRepository {
         return listOf(
             EmailAccount(
                 emailAddress = "work@company.com",
+                nickname = "Work",
                 provider = AccountProvider.GMAIL,
                 unreadToday = 12,
                 unreadTotal = 110,
@@ -30,6 +31,7 @@ class AccountRepository {
             ),
             EmailAccount(
                 emailAddress = "personal@outlook.com",
+                nickname = "Personal",
                 provider = AccountProvider.OUTLOOK,
                 unreadToday = 8,
                 unreadTotal = 46,

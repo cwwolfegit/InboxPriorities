@@ -11,6 +11,7 @@ enum class AccountProvider {
 data class EmailAccount(
     val id: String = UUID.randomUUID().toString(),
     val emailAddress: String,
+    val nickname: String = "", // e.g., "Work", "Personal"
     val provider: AccountProvider = AccountProvider.GMAIL,
     val isConnected: Boolean = true,
     val unreadToday: Int = 0,
