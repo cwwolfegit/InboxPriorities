@@ -1,5 +1,6 @@
 package com.example.inboxpriorities
 
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -130,7 +131,7 @@ fun DashboardScreen(
             }
         }
 
-        // --- 3. DETAIL EMAIL LIST ---
+// --- 3. DETAIL EMAIL LIST ---
         item {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -139,8 +140,33 @@ fun DashboardScreen(
             )
         }
 
-        items(evaluatedEmails, key = { it.id }) { email ->
-            EmailCard(email = email)
+        val hasActiveRules = rules.any { it.isEnabled }
+
+        if (!hasActiveRules) {
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = "No active priority rules. Please add or enable priority rule(s).",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    )
+                }
+            }
+        } else {
+            items(evaluatedEmails, key = { it.id }) { email ->
+                EmailCard(email = email)
+            }
         }
     }
 }
