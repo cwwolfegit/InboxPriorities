@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
             InboxPrioritiesTheme {
                 var selectedTab by rememberSaveable { mutableStateOf(AppTab.DASHBOARD) }
                 val rules by viewModel.rules.collectAsState()
+                val accounts by viewModel.accounts.collectAsState()
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -68,7 +69,8 @@ class MainActivity : ComponentActivity() {
                             AppTab.DASHBOARD -> {
                                 DashboardScreen(
                                     emails = MockDataRepository.mockEmails,
-                                    rules = rules
+                                    rules = rules,
+                                    accounts = accounts
                                 )
                             }
                             AppTab.RULES -> {

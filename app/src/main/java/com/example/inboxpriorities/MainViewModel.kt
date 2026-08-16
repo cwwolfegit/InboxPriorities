@@ -8,15 +8,28 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-class MainViewModel(private val repository: RulesRepository) : ViewModel() {
+class MainViewModel(
+    private val repository: RulesRepository,
+    private val accountRepository: AccountRepository = AccountRepository()
+) : ViewModel() {
 
-    // Automatically emits rules loaded from DataStore
+    // --- State Flows ---
+
     val rules: StateFlow<List<PriorityRule>> = repository.rulesFlow
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    val accounts: StateFlow<List<EmailAccount>> = accountRepository.accountsFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    // --- Priority Rules Functions ---
 
     fun toggleRule(ruleToToggle: PriorityRule, isEnabled: Boolean) {
         viewModelScope.launch {
@@ -56,5 +69,19 @@ class MainViewModel(private val repository: RulesRepository) : ViewModel() {
             val updatedList = rules.value.filterNot { it.id == ruleToDelete.id }
             repository.saveRules(updatedList)
         }
+    }
+
+    // --- Account Management Functions ---
+
+    fun addAccount(email: String, provider: AccountProvider) {
+        val newAccount = EmailAccount(
+            emailAddress = email,
+            provider = provider
+        )
+        accountRepository.addAccount(newAccount)
+    }
+
+    fun removeAccount(accountId: String) {
+        accountRepository.removeAccount(accountId)
     }
 }

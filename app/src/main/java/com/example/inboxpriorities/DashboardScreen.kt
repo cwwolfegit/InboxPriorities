@@ -17,7 +17,7 @@ fun DashboardScreen(
     emails: List<Email>,
     rules: List<PriorityRule>,
     summary: DashboardSummary = MockDataRepository.mockSummary,
-    accounts: List<AccountSummary> = MockDataRepository.mockAccounts
+    accounts: List<EmailAccount>
 ) {
     // Live evaluation of raw emails against active DataStore rules
     val evaluatedEmails = remember(rules, emails) {
@@ -110,8 +110,9 @@ fun DashboardScreen(
                 ) {
                     Column {
                         Text(
-                            text = account.accountName,
-                            style = MaterialTheme.typography.titleMedium
+                            text = account.emailAddress,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "${account.unreadTotal} unread total",
@@ -123,8 +124,11 @@ fun DashboardScreen(
                         containerColor = MaterialTheme.colorScheme.primary
                     ) {
                         Text(
-                            text = "${account.unreadPriorityToday} priority",
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            text = "${account.priorityToday} priority today",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
                 }
