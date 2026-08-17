@@ -83,8 +83,8 @@ class MainActivity : ComponentActivity() {
                             AppTab.ACCOUNTS -> {
                                 AccountsScreen(
                                     accounts = accounts,
-                                    onAddAccountClick = {
-                                        // Placeholder for dialog trigger
+                                    onAddAccount = { email, nickname, provider ->
+                                        viewModel.addAccount(email, nickname, provider)
                                     },
                                     onRemoveAccountClick = { accountId ->
                                         viewModel.removeAccount(accountId)

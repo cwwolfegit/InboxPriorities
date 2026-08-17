@@ -10,15 +10,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.*
 
 @Composable
 fun AccountsScreen(
     accounts: List<EmailAccount>,
-    onAddAccountClick: () -> Unit,
+    onAddAccount: (email: String, nickname: String, provider: AccountProvider) -> Unit,
     onRemoveAccountClick: (String) -> Unit
 ) {
+    var showAddDialog by remember { mutableStateOf(false) }
+    var accountToDelete by remember { mutableStateOf<EmailAccount?>(null) }
     val maxAccounts = 3
     val isLimitReached = accounts.size >= maxAccounts
+
+    // Dynamic colors for the badge based on limit state
+    val badgeBgColor = if (isLimitReached) {
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        MaterialTheme.colorScheme.secondaryContainer
+    }
+
+    val badgeTextColor = if (isLimitReached) {
+        MaterialTheme.colorScheme.onErrorContainer
+    } else {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -41,23 +57,35 @@ fun AccountsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = badgeBgColor,
                     shape = MaterialTheme.shapes.extraLarge
                 ) {
                     Text(
                         text = "${accounts.size} / $maxAccounts Connected",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        color = badgeTextColor,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
 
-                Button(
-                    onClick = onAddAccountClick,
-                    enabled = !isLimitReached
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("+ Add Account")
+                    Button(
+                        onClick = { showAddDialog = true },
+                        enabled = !isLimitReached
+                    ) {
+                        Text(if (isLimitReached) "Limit Reached" else "+ Add Account")
+                    }
+                    if (isLimitReached) {
+                        Text(
+                            text = "Free tier limit of $maxAccounts accounts reached.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -66,9 +94,50 @@ fun AccountsScreen(
         items(accounts, key = { it.id }) { account ->
             AccountManagementCard(
                 account = account,
-                onRemove = { onRemoveAccountClick(account.id) }
+                onRemove = { accountToDelete = account }
             )
         }
+    }
+    if (showAddDialog) {
+        AddAccountDialog(
+            onDismissRequest = { showAddDialog = false },
+            onAddAccount = { email, nickname, provider ->
+                onAddAccount(email, nickname, provider)
+                showAddDialog = false
+            }
+        )
+    }
+
+    accountToDelete?.let { account ->
+        val displayName = account.nickname.ifBlank { account.emailAddress }
+
+        AlertDialog(
+            onDismissRequest = { accountToDelete = null },
+            title = {
+                Text(
+                    text = "Delete Account",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text("Are you sure you want to delete '$displayName'? This action cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onRemoveAccountClick(account.id)
+                        accountToDelete = null
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { accountToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

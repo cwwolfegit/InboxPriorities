@@ -73,9 +73,11 @@ class MainViewModel(
 
     // --- Account Management Functions ---
 
-    fun addAccount(email: String, provider: AccountProvider) {
+    fun addAccount(email: String, nickname: String, provider: AccountProvider) {
         val newAccount = EmailAccount(
+            id = java.util.UUID.randomUUID().toString(),
             emailAddress = email,
+            nickname = nickname, // Make sure nickname is passed here
             provider = provider
         )
         accountRepository.addAccount(newAccount)
