@@ -36,7 +36,11 @@ fun RulesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Rules") }
+                title = { Text(
+                    text = "Rules",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                ) }
             )
         },
         modifier = modifier

@@ -17,6 +17,7 @@ import com.example.inboxpriorities.ui.theme.InboxPrioritiesTheme
 
 enum class AppTab {
     DASHBOARD,
+    ACCOUNTS,
     RULES
 }
 
@@ -51,6 +52,12 @@ class MainActivity : ComponentActivity() {
                                 label = { Text("Dashboard") }
                             )
                             NavigationBarItem(
+                                selected = selectedTab == AppTab.ACCOUNTS,
+                                onClick = { selectedTab = AppTab.ACCOUNTS },
+                                icon = { Text("👤", fontSize = 20.sp) },
+                                label = { Text("Accounts") }
+                            )
+                            NavigationBarItem(
                                 selected = selectedTab == AppTab.RULES,
                                 onClick = { selectedTab = AppTab.RULES },
                                 icon = { Text("⚙️", fontSize = 20.sp) },
@@ -71,6 +78,17 @@ class MainActivity : ComponentActivity() {
                                     emails = MockDataRepository.mockEmails,
                                     rules = rules,
                                     accounts = accounts
+                                )
+                            }
+                            AppTab.ACCOUNTS -> {
+                                AccountsScreen(
+                                    accounts = accounts,
+                                    onAddAccountClick = {
+                                        // Placeholder for dialog trigger
+                                    },
+                                    onRemoveAccountClick = { accountId ->
+                                        viewModel.removeAccount(accountId)
+                                    }
                                 )
                             }
                             AppTab.RULES -> {
