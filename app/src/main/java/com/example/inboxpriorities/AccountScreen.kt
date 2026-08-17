@@ -91,13 +91,41 @@ fun AccountsScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        items(accounts, key = { it.id }) { account ->
-            AccountManagementCard(
-                account = account,
-                onRemove = { accountToDelete = account }
-            )
+        if (accounts.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "No email accounts connected yet.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Tap '+ Add Account' above to add one!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        } else {
+            items(accounts, key = { it.id }) { account ->
+                AccountManagementCard(
+                    account = account,
+                    onRemove = { accountToDelete = account }
+                )
+            }
         }
     }
+
     if (showAddDialog) {
         AddAccountDialog(
             onDismissRequest = { showAddDialog = false },
