@@ -98,7 +98,7 @@ fun DashboardScreen(
             item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -107,7 +107,7 @@ fun DashboardScreen(
                     Text(
                         text = "No connected accounts. Please add an email account.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -189,7 +189,7 @@ fun DashboardScreen(
             item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -198,7 +198,7 @@ fun DashboardScreen(
                     Text(
                         text = "No active priority rules. Please add or enable priority rule(s).",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()

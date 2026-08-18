@@ -36,11 +36,13 @@ fun RulesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(
-                    text = "Rules",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                ) }
+                title = {
+                    Text(
+                        text = "Rules",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             )
         },
         modifier = modifier
@@ -101,14 +103,25 @@ fun RulesScreen(
             if (rules.isEmpty()) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize(),
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "No priority rules created yet.\nTap '+ Add Rule' above to add one!",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "No priority rules created yet.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Tap '+ Add Rule' above to add one!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             } else {
                 // Sort rules: Enabled first, then HIGH -> MEDIUM -> LOW -> NONE
@@ -234,4 +247,3 @@ fun DeleteRuleConfirmationDialog(
         }
     )
 }
-
