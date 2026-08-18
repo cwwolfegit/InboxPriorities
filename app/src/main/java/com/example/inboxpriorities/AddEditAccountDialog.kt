@@ -9,22 +9,24 @@ import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddAccountDialog(
+fun AddEditAccountDialog(
+    accountToEdit: EmailAccount? = null,
     onDismissRequest: () -> Unit,
-    onAddAccount: (email: String, nickname: String, provider: AccountProvider) -> Unit
+    onSaveAccount: (email: String, nickname: String, provider: AccountProvider) -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
-    var nickname by remember { mutableStateOf("") }
-    var selectedProvider by remember { mutableStateOf(AccountProvider.GMAIL) }
+    var email by remember { mutableStateOf(accountToEdit?.emailAddress ?: "") }
+    var nickname by remember { mutableStateOf(accountToEdit?.nickname ?: "") }
+    var selectedProvider by remember { mutableStateOf(accountToEdit?.provider ?: AccountProvider.GMAIL) }
     var expanded by remember { mutableStateOf(false) }
 
     val isEmailValid = email.isNotBlank() && email.contains("@")
+    val isEditing = accountToEdit != null
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = {
             Text(
-                text = "Add Email Account",
+                text = if (isEditing) "Edit Email Account" else "Add Email Account",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -91,12 +93,12 @@ fun AddAccountDialog(
             Button(
                 onClick = {
                     if (isEmailValid) {
-                        onAddAccount(email.trim(), nickname.trim(), selectedProvider)
+                        onSaveAccount(email.trim(), nickname.trim(), selectedProvider)
                     }
                 },
                 enabled = isEmailValid
             ) {
-                Text("Add")
+                Text(if (isEditing) "Save" else "Add")
             }
         },
         dismissButton = {

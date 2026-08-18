@@ -16,9 +16,11 @@ import androidx.compose.runtime.*
 fun AccountsScreen(
     accounts: List<EmailAccount>,
     onAddAccount: (email: String, nickname: String, provider: AccountProvider) -> Unit,
+    onUpdateAccount: (oldAccount: EmailAccount, updatedAccount: EmailAccount) -> Unit,
     onRemoveAccountClick: (String) -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
+    var accountToEdit by remember { mutableStateOf<EmailAccount?>(null) }
     var accountToDelete by remember { mutableStateOf<EmailAccount?>(null) }
     val maxAccounts = 3
     val isLimitReached = accounts.size >= maxAccounts
@@ -120,6 +122,7 @@ fun AccountsScreen(
             items(accounts, key = { it.id }) { account ->
                 AccountManagementCard(
                     account = account,
+                    onEdit = { accountToEdit = account },
                     onRemove = { accountToDelete = account }
                 )
             }
@@ -127,11 +130,28 @@ fun AccountsScreen(
     }
 
     if (showAddDialog) {
-        AddAccountDialog(
+        AddEditAccountDialog(
+            accountToEdit = null,
             onDismissRequest = { showAddDialog = false },
-            onAddAccount = { email, nickname, provider ->
+            onSaveAccount = { email, nickname, provider ->
                 onAddAccount(email, nickname, provider)
                 showAddDialog = false
+            }
+        )
+    }
+
+    accountToEdit?.let { targetAccount ->
+        AddEditAccountDialog(
+            accountToEdit = targetAccount,
+            onDismissRequest = { accountToEdit = null },
+            onSaveAccount = { email, nickname, provider ->
+                val updatedAccount = targetAccount.copy(
+                    emailAddress = email,
+                    nickname = nickname,
+                    provider = provider
+                )
+                onUpdateAccount(targetAccount, updatedAccount)
+                accountToEdit = null
             }
         )
     }
@@ -172,6 +192,7 @@ fun AccountsScreen(
 @Composable
 fun AccountManagementCard(
     account: EmailAccount,
+    onEdit: () -> Unit,
     onRemove: () -> Unit
 ) {
     val providerLabel = account.provider.name.lowercase().replaceFirstChar { it.uppercase() }
@@ -209,8 +230,13 @@ fun AccountManagementCard(
                 }
             }
 
-            IconButton(onClick = onRemove) {
-                Text("🗑️", fontSize = 18.sp)
+            Row {
+                IconButton(onClick = onEdit) {
+                    Text("✏️", fontSize = 18.sp)
+                }
+                IconButton(onClick = onRemove) {
+                    Text("🗑️", fontSize = 18.sp)
+                }
             }
         }
     }

@@ -91,4 +91,13 @@ class MainViewModel(
             repository.saveAccounts(updatedList)
         }
     }
+
+    fun updateAccount(oldAccount: EmailAccount, updatedAccount: EmailAccount) {
+        viewModelScope.launch {
+            val updatedList = accounts.value.map { account ->
+                if (account.id == oldAccount.id) updatedAccount else account
+            }
+            repository.saveAccounts(updatedList)
+        }
+    }
 }

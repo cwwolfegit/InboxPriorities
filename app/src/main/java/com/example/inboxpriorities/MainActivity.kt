@@ -87,6 +87,9 @@ class MainActivity : ComponentActivity() {
                                     onAddAccount = { email, nickname, provider ->
                                         viewModel.addAccount(email, nickname, provider)
                                     },
+                                    onUpdateAccount = { oldAccount, updatedAccount ->
+                                        viewModel.updateAccount(oldAccount, updatedAccount)
+                                    },
                                     onRemoveAccountClick = { accountId ->
                                         viewModel.removeAccount(accountId)
                                     }
