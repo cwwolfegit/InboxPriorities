@@ -1,5 +1,6 @@
 package com.example.inboxpriorities
 
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
 enum class AccountProvider {
@@ -7,7 +8,7 @@ enum class AccountProvider {
     OUTLOOK,
     OTHER
 }
-
+@Serializable
 data class EmailAccount(
     val id: String = UUID.randomUUID().toString(),
     val emailAddress: String,

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.inboxpriorities.ui.theme.InboxPrioritiesTheme
 
 enum class AppTab {
@@ -38,8 +39,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             InboxPrioritiesTheme {
                 var selectedTab by rememberSaveable { mutableStateOf(AppTab.DASHBOARD) }
-                val rules by viewModel.rules.collectAsState()
-                val accounts by viewModel.accounts.collectAsState()
+                val rules by viewModel.rules.collectAsStateWithLifecycle()
+                val accounts by viewModel.accounts.collectAsStateWithLifecycle()
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),

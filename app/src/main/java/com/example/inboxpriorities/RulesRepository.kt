@@ -15,7 +15,12 @@ private val Context.dataStore by preferencesDataStore(name = "inbox_priorities_p
 
 class RulesRepository(private val context: Context) {
 
+    private val json = Json { ignoreUnknownKeys = true }
+
     private val RULES_KEY = stringPreferencesKey("saved_priority_rules")
+    private val ACCOUNTS_KEY = stringPreferencesKey("saved_email_accounts")
+
+    // --- RULES ---
 
     // Continuous flow of rules from DataStore
     val rulesFlow: Flow<List<PriorityRule>> = context.dataStore.data
@@ -23,7 +28,7 @@ class RulesRepository(private val context: Context) {
             val jsonString = preferences[RULES_KEY]
             if (!jsonString.isNullOrEmpty()) {
                 try {
-                    Json.decodeFromString<List<PriorityRule>>(jsonString)
+                    json.decodeFromString<List<PriorityRule>>(jsonString)
                 } catch (e: Exception) {
                     getDefaultRules()
                 }
@@ -34,9 +39,34 @@ class RulesRepository(private val context: Context) {
 
     // Save full list of rules as a JSON string
     suspend fun saveRules(rules: List<PriorityRule>) {
-        val jsonString = Json.encodeToString(rules)
+        val jsonString = json.encodeToString(rules)
         context.dataStore.edit { preferences ->
             preferences[RULES_KEY] = jsonString
+        }
+    }
+
+    // --- ACCOUNTS ---
+
+    // Continuous flow of accounts from DataStore
+    val accountsFlow: Flow<List<EmailAccount>> = context.dataStore.data
+        .map { preferences ->
+            val jsonString = preferences[ACCOUNTS_KEY]
+            if (!jsonString.isNullOrEmpty()) {
+                try {
+                    json.decodeFromString<List<EmailAccount>>(jsonString)
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            } else {
+                emptyList()
+            }
+        }
+
+    // Save full list of accounts as a JSON string
+    suspend fun saveAccounts(accounts: List<EmailAccount>) {
+        val jsonString = json.encodeToString(accounts)
+        context.dataStore.edit { preferences ->
+            preferences[ACCOUNTS_KEY] = jsonString
         }
     }
 

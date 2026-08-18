@@ -9,8 +9,7 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 class MainViewModel(
-    private val repository: RulesRepository,
-    private val accountRepository: AccountRepository = AccountRepository()
+    private val repository: RulesRepository
 ) : ViewModel() {
 
     // --- State Flows ---
@@ -22,7 +21,7 @@ class MainViewModel(
             initialValue = emptyList()
         )
 
-    val accounts: StateFlow<List<EmailAccount>> = accountRepository.accountsFlow
+    val accounts: StateFlow<List<EmailAccount>> = repository.accountsFlow
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -74,16 +73,22 @@ class MainViewModel(
     // --- Account Management Functions ---
 
     fun addAccount(email: String, nickname: String, provider: AccountProvider) {
-        val newAccount = EmailAccount(
-            id = java.util.UUID.randomUUID().toString(),
-            emailAddress = email,
-            nickname = nickname, // Make sure nickname is passed here
-            provider = provider
-        )
-        accountRepository.addAccount(newAccount)
+        viewModelScope.launch {
+            val newAccount = EmailAccount(
+                id = UUID.randomUUID().toString(),
+                emailAddress = email,
+                nickname = nickname,
+                provider = provider
+            )
+            val updatedList = accounts.value + newAccount
+            repository.saveAccounts(updatedList)
+        }
     }
 
     fun removeAccount(accountId: String) {
-        accountRepository.removeAccount(accountId)
+        viewModelScope.launch {
+            val updatedList = accounts.value.filterNot { it.id == accountId }
+            repository.saveAccounts(updatedList)
+        }
     }
 }
