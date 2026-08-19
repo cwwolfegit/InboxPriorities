@@ -56,7 +56,8 @@ class GmailServiceRepository(private val context: Context, private val account: 
                         id = fullMessage.id,
                         sender = sender,
                         subject = subject,
-                        body = snippet
+                        body = snippet,
+                        recipientAccount = account.email ?: ""
                     )
                 )
             }
@@ -65,5 +66,22 @@ class GmailServiceRepository(private val context: Context, private val account: 
         }
 
         return@withContext emailList
+    }
+
+    suspend fun getUnreadInboxCount(): Pair<Int, Boolean> = withContext(Dispatchers.IO) {
+        try {
+            // Query exactly 200 unread threads; if there's a nextPageToken, it's > 200
+            val response = gmailService.users().threads().list("me")
+                .setQ("is:unread in:inbox")
+                .setMaxResults(200)
+                .execute()
+
+            val count = response.threads?.size ?: 0
+            val isExceeded = !response.nextPageToken.isNullOrEmpty()
+
+            return@withContext Pair(count, isExceeded)
+        } catch (e: Exception) {
+            return@withContext Pair(0, false)
+        }
     }
 }

@@ -16,7 +16,8 @@ import androidx.compose.ui.unit.sp
 fun DashboardScreen(
     emails: List<Email>,
     rules: List<PriorityRule>,
-    accounts: List<EmailAccount>
+    accounts: List<EmailAccount>,
+    unreadCounts: Map<String, String> // <--- Changed from Map<String, Int> to Map<String, String>
 ) {
     // 1. Evaluate all emails against active rules
     val allEvaluatedEmails = remember(rules, emails) {
@@ -34,9 +35,6 @@ fun DashboardScreen(
     }
 
     // 2. Dynamic top summary calculations
-    val totalUnreadToday = allEvaluatedEmails.count { !it.isRead && it.isToday }
-    val totalUnreadTotal = allEvaluatedEmails.count { !it.isRead }
-
     val priorityUnreadToday = allEvaluatedEmails.count {
         !it.isRead && it.isToday && it.priorityLevel != PriorityLevel.NONE
     }
@@ -86,10 +84,15 @@ fun DashboardScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val totalUnreadToday = allEvaluatedEmails.count { !it.isRead && it.isToday }
+
+                // Pull the global/primary account unread string, defaulting to "0" if not loaded yet
+                val globalUnreadTotal = unreadCounts.values.firstOrNull() ?: "0"
+
                 MetricCard(
                     title = "Total Unread",
                     mainValue = "$totalUnreadToday today",
-                    subValue = "$totalUnreadTotal total",
+                    subValue = "$globalUnreadTotal total",
                     modifier = Modifier.weight(1f)
                 )
                 MetricCard(
@@ -132,12 +135,15 @@ fun DashboardScreen(
             }
         } else {
             items(accounts, key = { it.id }) { account ->
-                // Account-specific counts (Strict match on recipient address)
+                // Account-specific local counts for today's filter
                 val accountEmails = allEvaluatedEmails.filter { email ->
                     email.recipientAccount.equals(account.emailAddress, ignoreCase = true)
                 }
                 val accountUnreadToday = accountEmails.count { !it.isRead && it.isToday }
-                val accountUnreadTotal = accountEmails.count { !it.isRead }
+
+                // Pull formatted API count string for this specific account
+                val trueAccountTotal = unreadCounts[account.emailAddress] ?: "0"
+
                 val accountPriorityToday = accountEmails.count { !it.isRead && it.isToday && it.priorityLevel != PriorityLevel.NONE }
                 val accountPriorityTotal = accountEmails.count { !it.isRead && it.priorityLevel != PriorityLevel.NONE }
 
@@ -179,7 +185,7 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.height(2.dp))
 
                             Text(
-                                text = "$accountUnreadToday today · $accountUnreadTotal total unread",
+                                text = "$accountUnreadToday today · $trueAccountTotal total unread",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -187,7 +193,7 @@ fun DashboardScreen(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        // Dynamic priority badge state (Explicit wording, no slashes)
+                        // Dynamic priority badge state
                         val hasPriority = accountPriorityTotal > 0
                         Surface(
                             shape = MaterialTheme.shapes.small,

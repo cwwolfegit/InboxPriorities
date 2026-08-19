@@ -36,6 +36,10 @@ class MainViewModel(
     private val _emails = MutableStateFlow<List<Email>>(emptyList())
     val emails: StateFlow<List<Email>> = _emails.asStateFlow()
 
+    // Changed to store formatted strings (e.g., "15" or "200+") so the UI can display them cleanly
+    private val _unreadCounts = MutableStateFlow<Map<String, String>>(emptyMap())
+    val unreadCounts: StateFlow<Map<String, String>> = _unreadCounts.asStateFlow()
+
     // --- Priority Rules Functions ---
 
     fun toggleRule(ruleToToggle: PriorityRule, isEnabled: Boolean) {
@@ -114,8 +118,24 @@ class MainViewModel(
     fun loadGmailMessages(context: Context, account: GoogleSignInAccount) {
         viewModelScope.launch {
             val gmailRepo = GmailServiceRepository(context, account)
+
+            // Fetch recent messages for display
             val fetchedEmails = gmailRepo.fetchRecentEmails(maxResults = 10)
             _emails.value = fetchedEmails
+
+            // Fetch capped unread count pair (count, isExceeded)
+            val unreadResult = gmailRepo.getUnreadInboxCount()
+            val formattedCount = if (unreadResult.second) {
+                "${unreadResult.first}+"
+            } else {
+                "${unreadResult.first}"
+            }
+
+            account.email?.let { emailAddress ->
+                _unreadCounts.value = _unreadCounts.value.toMutableMap().apply {
+                    put(emailAddress, formattedCount)
+                }
+            }
         }
     }
 
