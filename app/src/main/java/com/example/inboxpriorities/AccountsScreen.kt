@@ -1,16 +1,20 @@
 package com.example.inboxpriorities
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.*
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
 
 @Composable
 fun AccountsScreen(
@@ -19,11 +23,31 @@ fun AccountsScreen(
     onUpdateAccount: (oldAccount: EmailAccount, updatedAccount: EmailAccount) -> Unit,
     onRemoveAccountClick: (String) -> Unit
 ) {
-    var showAddDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val authHelper = remember { GmailAuthHelper(context) }
+
     var accountToEdit by remember { mutableStateOf<EmailAccount?>(null) }
     var accountToDelete by remember { mutableStateOf<EmailAccount?>(null) }
     val maxAccounts = 3
     val isLimitReached = accounts.size >= maxAccounts
+
+    // Activity launcher for Google Sign-In OAuth flow
+    val signInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val googleAccount = task.getResult(ApiException::class.java)
+            val email = googleAccount?.email.orEmpty()
+            val nickname = googleAccount?.displayName.orEmpty().ifBlank { "Gmail Account" }
+
+            if (email.isNotBlank()) {
+                onAddAccount(email, nickname, AccountProvider.GMAIL)
+            }
+        } catch (e: ApiException) {
+            println("Google Sign-In failed with status code: ${e.statusCode}")
+        }
+    }
 
     // Dynamic colors for the badge based on limit state
     val badgeBgColor = if (isLimitReached) {
@@ -52,7 +76,7 @@ fun AccountsScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Sub-header Row (Badge + Button) matching Rules layout
+            // Sub-header Row (Badge + Button)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -76,7 +100,9 @@ fun AccountsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { showAddDialog = true },
+                        onClick = {
+                            signInLauncher.launch(authHelper.signInClient.signInIntent)
+                        },
                         enabled = !isLimitReached
                     ) {
                         Text(if (isLimitReached) "Limit Reached" else "+ Add Account")
@@ -111,7 +137,7 @@ fun AccountsScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Tap '+ Add Account' above to add one!",
+                            text = "Tap '+ Add Account' above to connect your Gmail!",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -127,17 +153,6 @@ fun AccountsScreen(
                 )
             }
         }
-    }
-
-    if (showAddDialog) {
-        AddEditAccountDialog(
-            accountToEdit = null,
-            onDismissRequest = { showAddDialog = false },
-            onSaveAccount = { email, nickname, provider ->
-                onAddAccount(email, nickname, provider)
-                showAddDialog = false
-            }
-        )
     }
 
     accountToEdit?.let { targetAccount ->
