@@ -16,11 +16,10 @@ import androidx.compose.ui.unit.sp
 fun DashboardScreen(
     emails: List<Email>,
     rules: List<PriorityRule>,
-    summary: DashboardSummary = MockDataRepository.mockSummary,
     accounts: List<EmailAccount>
 ) {
-    // Live evaluation of raw emails against active DataStore rules
-    val evaluatedEmails = remember(rules, emails) {
+    // 1. Evaluate all emails against active rules
+    val allEvaluatedEmails = remember(rules, emails) {
         val activeRules = rules.filter { it.isEnabled }
 
         emails.map { email ->
@@ -32,6 +31,22 @@ fun DashboardScreen(
 
             email.copy(priorityLevel = calculatedPriority)
         }
+    }
+
+    // 2. Dynamic top summary calculations
+    val totalUnreadToday = allEvaluatedEmails.count { !it.isRead && it.isToday }
+    val totalUnreadTotal = allEvaluatedEmails.count { !it.isRead }
+
+    val priorityUnreadToday = allEvaluatedEmails.count {
+        !it.isRead && it.isToday && it.priorityLevel != PriorityLevel.NONE
+    }
+    val priorityUnreadTotal = allEvaluatedEmails.count {
+        !it.isRead && it.priorityLevel != PriorityLevel.NONE
+    }
+
+    // 3. Filtered & sorted list for the Priority Emails section
+    val priorityEmails = remember(allEvaluatedEmails) {
+        allEvaluatedEmails
             .filter { it.priorityLevel != PriorityLevel.NONE }
             .sortedByDescending { email ->
                 when (email.priorityLevel) {
@@ -72,15 +87,15 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 MetricCard(
-                    title = "Priority Unread",
-                    mainValue = "${summary.unreadPriorityToday} today",
-                    subValue = "${summary.unreadPriorityTotal} total",
+                    title = "Total Unread",
+                    mainValue = "$totalUnreadToday today",
+                    subValue = "$totalUnreadTotal total",
                     modifier = Modifier.weight(1f)
                 )
                 MetricCard(
-                    title = "Total Unread",
-                    mainValue = "${summary.unreadToday} today",
-                    subValue = "${summary.unreadTotal} total",
+                    title = "Priority Unread",
+                    mainValue = "$priorityUnreadToday today",
+                    subValue = "$priorityUnreadTotal total",
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -117,6 +132,15 @@ fun DashboardScreen(
             }
         } else {
             items(accounts, key = { it.id }) { account ->
+                // Account-specific counts (Strict match on recipient address)
+                val accountEmails = allEvaluatedEmails.filter { email ->
+                    email.recipientAccount.equals(account.emailAddress, ignoreCase = true)
+                }
+                val accountUnreadToday = accountEmails.count { !it.isRead && it.isToday }
+                val accountUnreadTotal = accountEmails.count { !it.isRead }
+                val accountPriorityToday = accountEmails.count { !it.isRead && it.isToday && it.priorityLevel != PriorityLevel.NONE }
+                val accountPriorityTotal = accountEmails.count { !it.isRead && it.priorityLevel != PriorityLevel.NONE }
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -137,7 +161,7 @@ fun DashboardScreen(
                             account.emailAddress
                         }
 
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = titleText,
                                 style = MaterialTheme.typography.titleMedium,
@@ -152,18 +176,40 @@ fun DashboardScreen(
                                 )
                             }
 
+                            Spacer(modifier = Modifier.height(2.dp))
+
                             Text(
-                                text = "${account.unreadTotal} unread total",
+                                text = "$accountUnreadToday today · $accountUnreadTotal total unread",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Badge(
-                            containerColor = MaterialTheme.colorScheme.primary
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Dynamic priority badge state (Explicit wording, no slashes)
+                        val hasPriority = accountPriorityTotal > 0
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = if (hasPriority) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHigh
+                            }
                         ) {
+                            val badgeText = when {
+                                !hasPriority -> "No priority"
+                                accountPriorityToday == accountPriorityTotal -> "$accountPriorityToday priority"
+                                else -> "$accountPriorityToday today · $accountPriorityTotal total priority"
+                            }
+
                             Text(
-                                text = "${account.priorityToday} priority today",
-                                color = MaterialTheme.colorScheme.onPrimary,
+                                text = badgeText,
+                                color = if (hasPriority) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -207,7 +253,7 @@ fun DashboardScreen(
                 }
             }
         } else {
-            items(evaluatedEmails, key = { it.id }) { email ->
+            items(priorityEmails, key = { it.id }) { email ->
                 EmailCard(email = email)
             }
         }
