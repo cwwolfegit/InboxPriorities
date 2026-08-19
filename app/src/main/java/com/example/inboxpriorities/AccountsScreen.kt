@@ -27,8 +27,13 @@ fun AccountsScreen(
     val context = LocalContext.current
     val authHelper = remember { GmailAuthHelper(context) }
 
+    var showAddDialog by remember { mutableStateOf(false) }
     var accountToEdit by remember { mutableStateOf<EmailAccount?>(null) }
     var accountToDelete by remember { mutableStateOf<EmailAccount?>(null) }
+
+    // Declare pendingAccountData BEFORE signInLauncher so it is in scope
+    var pendingAccountData by remember { mutableStateOf<Pair<String, String>?>(null) }
+
     val maxAccounts = 3
     val isLimitReached = accounts.size >= maxAccounts
 
@@ -41,16 +46,19 @@ fun AccountsScreen(
             val googleAccount = task.getResult(ApiException::class.java)
             if (googleAccount != null) {
                 val email = googleAccount.email.orEmpty()
-                val nickname = googleAccount.displayName.orEmpty().ifBlank { "Gmail Account" }
+                // Use the nickname from the dialog if provided
+                val nickname = pendingAccountData?.second.takeIf { !it.isNullOrBlank() }
+                    ?: googleAccount.displayName.orEmpty().ifBlank { "Gmail Account" }
 
                 if (email.isNotBlank()) {
                     onAddAccount(email, nickname, AccountProvider.GMAIL)
-                    // Trigger loading Gmail messages into state
                     viewModel.loadGmailMessages(context, googleAccount)
                 }
             }
         } catch (e: ApiException) {
             println("Google Sign-In failed with status code: ${e.statusCode}")
+        } finally {
+            pendingAccountData = null
         }
     }
 
@@ -105,9 +113,7 @@ fun AccountsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = {
-                            signInLauncher.launch(authHelper.signInClient.signInIntent)
-                        },
+                        onClick = { showAddDialog = true },
                         enabled = !isLimitReached
                     ) {
                         Text(if (isLimitReached) "Limit Reached" else "+ Add Account")
@@ -142,7 +148,7 @@ fun AccountsScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Tap '+ Add Account' above to connect your Gmail!",
+                            text = "Tap '+ Add Account' above to connect your account!",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -160,6 +166,29 @@ fun AccountsScreen(
         }
     }
 
+    // --- Add Account Dialog ---
+    if (showAddDialog) {
+        AddEditAccountDialog(
+            accountToEdit = null,
+            onDismissRequest = { showAddDialog = false },
+            onSaveAccount = { email, nickname, provider ->
+                showAddDialog = false
+                if (provider == AccountProvider.GMAIL) {
+                    pendingAccountData = Pair(email, nickname)
+
+                    // Force Google Sign-In to show the account picker/sign-in screen
+                    // by signing out of the cached session first
+                    authHelper.signInClient.signOut().addOnCompleteListener {
+                        signInLauncher.launch(authHelper.signInClient.signInIntent)
+                    }
+                } else {
+                    onAddAccount(email, nickname, provider)
+                }
+            }
+        )
+    }
+
+    // --- Edit Account Dialog ---
     accountToEdit?.let { targetAccount ->
         AddEditAccountDialog(
             accountToEdit = targetAccount,
@@ -176,6 +205,7 @@ fun AccountsScreen(
         )
     }
 
+    // --- Delete Account Dialog ---
     accountToDelete?.let { account ->
         val displayName = account.nickname.ifBlank { account.emailAddress }
 
