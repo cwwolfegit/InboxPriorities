@@ -36,11 +36,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Auto-fetch emails on app startup if a Google account is already signed in
+        viewModel.checkAndLoadExistingAccount(this)
+
         setContent {
             InboxPrioritiesTheme {
                 var selectedTab by rememberSaveable { mutableStateOf(AppTab.DASHBOARD) }
                 val rules by viewModel.rules.collectAsStateWithLifecycle()
                 val accounts by viewModel.accounts.collectAsStateWithLifecycle()
+                val emails by viewModel.emails.collectAsStateWithLifecycle()
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -76,7 +81,7 @@ class MainActivity : ComponentActivity() {
                         when (selectedTab) {
                             AppTab.DASHBOARD -> {
                                 DashboardScreen(
-                                    emails = MockDataRepository.mockEmails,
+                                    emails = emails,
                                     rules = rules,
                                     accounts = accounts
                                 )

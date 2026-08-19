@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
+import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import android.content.Context
 
@@ -29,6 +32,9 @@ class MainViewModel(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    private val _emails = MutableStateFlow<List<Email>>(emptyList())
+    val emails: StateFlow<List<Email>> = _emails.asStateFlow()
 
     // --- Priority Rules Functions ---
 
@@ -103,13 +109,20 @@ class MainViewModel(
         }
     }
 
+    // --- Gmail Sync Functions ---
+
     fun loadGmailMessages(context: Context, account: GoogleSignInAccount) {
         viewModelScope.launch {
-            val repository = GmailServiceRepository(context, account)
-            val fetchedEmails = repository.fetchRecentEmails(maxResults = 10)
+            val gmailRepo = GmailServiceRepository(context, account)
+            val fetchedEmails = gmailRepo.fetchRecentEmails(maxResults = 10)
+            _emails.value = fetchedEmails
+        }
+    }
 
-            // Update your UI state with real emails
-            // e.g., _emails.value = fetchedEmails
+    fun checkAndLoadExistingAccount(context: Context) {
+        val lastSignedInAccount = GoogleSignIn.getLastSignedInAccount(context)
+        if (lastSignedInAccount != null) {
+            loadGmailMessages(context, lastSignedInAccount)
         }
     }
 }
