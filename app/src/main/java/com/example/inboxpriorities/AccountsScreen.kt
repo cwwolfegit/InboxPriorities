@@ -18,6 +18,7 @@ import com.google.android.gms.common.api.ApiException
 
 @Composable
 fun AccountsScreen(
+    viewModel: MainViewModel,
     accounts: List<EmailAccount>,
     onAddAccount: (email: String, nickname: String, provider: AccountProvider) -> Unit,
     onUpdateAccount: (oldAccount: EmailAccount, updatedAccount: EmailAccount) -> Unit,
@@ -38,11 +39,15 @@ fun AccountsScreen(
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
             val googleAccount = task.getResult(ApiException::class.java)
-            val email = googleAccount?.email.orEmpty()
-            val nickname = googleAccount?.displayName.orEmpty().ifBlank { "Gmail Account" }
+            if (googleAccount != null) {
+                val email = googleAccount.email.orEmpty()
+                val nickname = googleAccount.displayName.orEmpty().ifBlank { "Gmail Account" }
 
-            if (email.isNotBlank()) {
-                onAddAccount(email, nickname, AccountProvider.GMAIL)
+                if (email.isNotBlank()) {
+                    onAddAccount(email, nickname, AccountProvider.GMAIL)
+                    // Trigger loading Gmail messages into state
+                    viewModel.loadGmailMessages(context, googleAccount)
+                }
             }
         } catch (e: ApiException) {
             println("Google Sign-In failed with status code: ${e.statusCode}")

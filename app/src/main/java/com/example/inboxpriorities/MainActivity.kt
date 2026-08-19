@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
                             }
                             AppTab.ACCOUNTS -> {
                                 AccountsScreen(
+                                    viewModel = viewModel,
                                     accounts = accounts,
                                     onAddAccount = { email, nickname, provider ->
                                         viewModel.addAccount(email, nickname, provider)

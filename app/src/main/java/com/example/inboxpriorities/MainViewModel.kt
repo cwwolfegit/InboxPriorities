@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import android.content.Context
 
 class MainViewModel(
     private val repository: RulesRepository
@@ -98,6 +100,16 @@ class MainViewModel(
                 if (account.id == oldAccount.id) updatedAccount else account
             }
             repository.saveAccounts(updatedList)
+        }
+    }
+
+    fun loadGmailMessages(context: Context, account: GoogleSignInAccount) {
+        viewModelScope.launch {
+            val repository = GmailServiceRepository(context, account)
+            val fetchedEmails = repository.fetchRecentEmails(maxResults = 10)
+
+            // Update your UI state with real emails
+            // e.g., _emails.value = fetchedEmails
         }
     }
 }
