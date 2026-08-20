@@ -17,7 +17,8 @@ fun DashboardScreen(
     emails: List<Email>,
     rules: List<PriorityRule>,
     accounts: List<EmailAccount>,
-    unreadCounts: Map<String, String> // <--- Changed from Map<String, Int> to Map<String, String>
+    unreadCounts: Map<String, String>,
+    unreadTodayCounts: Map<String, String> // <--- Added this parameter
 ) {
     // 1. Evaluate all emails against active rules
     val allEvaluatedEmails = remember(rules, emails) {
@@ -139,7 +140,7 @@ fun DashboardScreen(
                 val accountEmails = allEvaluatedEmails.filter { email ->
                     email.recipientAccount.equals(account.emailAddress, ignoreCase = true)
                 }
-                val accountUnreadToday = accountEmails.count { !it.isRead && it.isToday }
+                val accountUnreadToday = unreadTodayCounts[account.emailAddress] ?: "0"
 
                 // Pull formatted API count string for this specific account
                 val trueAccountTotal = unreadCounts[account.emailAddress] ?: "0"

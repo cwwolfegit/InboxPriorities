@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
                 val accounts by viewModel.accounts.collectAsStateWithLifecycle()
                 val emails by viewModel.emails.collectAsStateWithLifecycle()
                 val unreadCounts by viewModel.unreadCounts.collectAsStateWithLifecycle()
+                val unreadTodayCounts by viewModel.unreadTodayCounts.collectAsStateWithLifecycle()
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -85,7 +86,8 @@ class MainActivity : ComponentActivity() {
                                     emails = emails,
                                     rules = rules,
                                     accounts = accounts,
-                                    unreadCounts = unreadCounts
+                                    unreadCounts = unreadCounts,
+                                    unreadTodayCounts = unreadTodayCounts
                                 )
                             }
                             AppTab.ACCOUNTS -> {

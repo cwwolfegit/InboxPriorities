@@ -9,6 +9,8 @@ import com.google.api.services.gmail.Gmail
 import com.google.api.services.gmail.GmailScopes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 class GmailServiceRepository(private val context: Context, private val account: GoogleSignInAccount) {
 
@@ -70,18 +72,43 @@ class GmailServiceRepository(private val context: Context, private val account: 
 
     suspend fun getUnreadInboxCount(): Pair<Int, Boolean> = withContext(Dispatchers.IO) {
         try {
-            // Query exactly 200 unread threads; if there's a nextPageToken, it's > 200
+            // Query unread messages in the primary category
             val response = gmailService.users().threads().list("me")
-                .setQ("is:unread in:inbox")
-                .setMaxResults(200)
+                .setQ("label:unread category:primary")
+                .setMaxResults(200) // Fetch up to 200 to check for pagination
                 .execute()
 
-            val count = response.threads?.size ?: 0
-            val isExceeded = !response.nextPageToken.isNullOrEmpty()
+            val messages = response.threads ?: emptyList()
+            val hasNextPage = !response.nextPageToken.isNullOrEmpty()
 
-            return@withContext Pair(count, isExceeded)
+            // If there is a nextPageToken, it's 200+
+            if (hasNextPage) {
+                return@withContext Pair(200, true)
+            }
+
+            // Otherwise, use resultSizeEstimate if available, or fall back to the actual messages list size
+            val count = response.resultSizeEstimate?.toInt() ?: messages.size
+
+            return@withContext Pair(count, false)
         } catch (e: Exception) {
+            e.printStackTrace()
             return@withContext Pair(0, false)
+        }
+    }
+    suspend fun getUnreadTodayCount(): Int = withContext(Dispatchers.IO) {
+        try {
+            // Format today's date as YYYY/MM/DD (e.g., "2026/08/20")
+            val todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
+
+            // Query unread messages in the primary category received strictly from today onward
+            val response = gmailService.users().threads().list("me")
+                .setQ("label:unread category:primary after:$todayStr")
+                .execute()
+
+            response.resultSizeEstimate?.toInt() ?: (response.threads?.size ?: 0)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            0
         }
     }
 }

@@ -39,6 +39,8 @@ class MainViewModel(
     // Changed to store formatted strings (e.g., "15" or "200+") so the UI can display them cleanly
     private val _unreadCounts = MutableStateFlow<Map<String, String>>(emptyMap())
     val unreadCounts: StateFlow<Map<String, String>> = _unreadCounts.asStateFlow()
+    private val _unreadTodayCounts = MutableStateFlow<Map<String, String>>(emptyMap())
+    val unreadTodayCounts: StateFlow<Map<String, String>> = _unreadTodayCounts.asStateFlow()
 
     // --- Priority Rules Functions ---
 
@@ -130,10 +132,14 @@ class MainViewModel(
             } else {
                 "${unreadResult.first}"
             }
+            val unreadToday = gmailRepo.getUnreadTodayCount()
 
             account.email?.let { emailAddress ->
                 _unreadCounts.value = _unreadCounts.value.toMutableMap().apply {
                     put(emailAddress, formattedCount)
+                }
+                _unreadTodayCounts.value = _unreadTodayCounts.value.toMutableMap().apply {
+                    put(emailAddress, unreadToday.toString())
                 }
             }
         }

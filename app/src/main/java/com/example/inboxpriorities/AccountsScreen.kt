@@ -176,10 +176,12 @@ fun AccountsScreen(
                 if (provider == AccountProvider.GMAIL) {
                     pendingAccountData = Pair(email, nickname)
 
-                    // Force Google Sign-In to show the account picker/sign-in screen
-                    // by signing out of the cached session first
-                    authHelper.signInClient.signOut().addOnCompleteListener {
-                        signInLauncher.launch(authHelper.signInClient.signInIntent)
+                    // Forcefully revoke access and sign out to clear cached tokens
+                    // and guarantee the account picker UI opens
+                    authHelper.signInClient.revokeAccess().addOnCompleteListener {
+                        authHelper.signInClient.signOut().addOnCompleteListener {
+                            signInLauncher.launch(authHelper.signInClient.signInIntent)
+                        }
                     }
                 } else {
                     onAddAccount(email, nickname, provider)
