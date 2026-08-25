@@ -16,6 +16,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.inboxpriorities.ui.theme.InboxPrioritiesTheme
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.example.inboxpriorities.diagnostics.GmailDiagnostic
+
 enum class AppTab {
     DASHBOARD,
     ACCOUNTS,
@@ -29,16 +33,21 @@ class MainActivity : ComponentActivity() {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val repository = RulesRepository(applicationContext)
                 @Suppress("UNCHECKED_CAST")
-                return MainViewModel(repository) as T
+                return MainViewModel(application = application, repository = repository) as T
             }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        println("DEBUG_START: Entering onCreate()")
         super.onCreate(savedInstanceState)
 
-        // Auto-fetch emails on app startup if a Google account is already signed in
-        viewModel.checkAndLoadExistingAccount(this)
+        // --- RUN GMAIL DIAGNOSTIC TEST HERE ---
+        //lifecycleScope.launch {
+            //val token = "YOUR_TEST_OAUTH_TOKEN_HERE" // Or look up your active token here
+            //GmailDiagnostic().runDiagnostic(token)
+        //}
+        // -------------------------------------
 
         setContent {
             InboxPrioritiesTheme {
@@ -48,6 +57,15 @@ class MainActivity : ComponentActivity() {
                 val emails by viewModel.emails.collectAsStateWithLifecycle()
                 val unreadCounts by viewModel.unreadCounts.collectAsStateWithLifecycle()
                 val unreadTodayCounts by viewModel.unreadTodayCounts.collectAsStateWithLifecycle()
+
+                // Automatically triggers once accounts are loaded from disk storage on startup
+                val accountList by viewModel.accounts.collectAsState()
+
+                LaunchedEffect(accountList) {
+                    if (accountList.isNotEmpty()) {
+                        viewModel.loadAllDefinedAccounts(context = this@MainActivity)
+                    }
+                }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),

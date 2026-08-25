@@ -78,6 +78,9 @@ dependencies {
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.gms:play-services-auth:21.2.0")
 
+    // Google ID support for Credential Manager
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
     // Gmail API Client
     implementation("com.google.api-client:google-api-client-android:2.6.0")
     implementation("com.google.apis:google-api-services-gmail:v1-rev20240520-2.0.0")

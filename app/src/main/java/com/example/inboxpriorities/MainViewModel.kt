@@ -1,5 +1,6 @@
 package com.example.inboxpriorities
 
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -9,13 +10,43 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import android.content.Context
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+
 class MainViewModel(
+    application: Application,
     private val repository: RulesRepository
-) : ViewModel() {
+) : AndroidViewModel(application) {
+
+    private val prefs = application.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
+    // In-memory cache mapping email addresses to their active Google ID tokens
+    private val activeGoogleTokens = mutableMapOf<String, String>()
+
+    init {
+        // Automatically restore saved tokens from storage on startup
+        prefs.all.forEach { (key, value) ->
+            if (key.startsWith("token_") && value is String) {
+                val email = key.removePrefix("token_")
+                if (email.isNotBlank() && value.isNotBlank()) {
+                    activeGoogleTokens[email] = value
+                    android.util.Log.d("Debug_MainViewModel", "Restored saved token for $email from SharedPreferences")
+                }
+            }
+        }
+    }
+
+    fun cacheGoogleToken(email: String, idToken: String) {
+        android.util.Log.d("Debug_MainViewModel", "cacheGoogleToken called for email: '$email', token length: ${idToken.length}")
+        if (email.isNotBlank() && idToken.isNotBlank()) {
+            activeGoogleTokens[email] = idToken
+            prefs.edit().putString("token_$email", idToken).apply()
+            android.util.Log.d("Debug_MainViewModel", "Successfully cached and persisted token for $email")
+        } else {
+            android.util.Log.d("Debug_MainViewModel", "FAILED to cache token: email or token was blank.")
+        }
+    }
 
     // --- State Flows ---
 
@@ -36,7 +67,6 @@ class MainViewModel(
     private val _emails = MutableStateFlow<List<Email>>(emptyList())
     val emails: StateFlow<List<Email>> = _emails.asStateFlow()
 
-    // Changed to store formatted strings (e.g., "15" or "200+") so the UI can display them cleanly
     private val _unreadCounts = MutableStateFlow<Map<String, String>>(emptyMap())
     val unreadCounts: StateFlow<Map<String, String>> = _unreadCounts.asStateFlow()
     private val _unreadTodayCounts = MutableStateFlow<Map<String, String>>(emptyMap())
@@ -88,14 +118,23 @@ class MainViewModel(
 
     fun addAccount(email: String, nickname: String, provider: AccountProvider) {
         viewModelScope.launch {
-            val newAccount = EmailAccount(
-                id = UUID.randomUUID().toString(),
-                emailAddress = email,
-                nickname = nickname,
-                provider = provider
-            )
-            val updatedList = accounts.value + newAccount
-            repository.saveAccounts(updatedList)
+            // Check if the account is already in the list to prevent duplicates
+            val existingAccount = accounts.value.find { it.emailAddress.equals(email, ignoreCase = true) }
+
+            if (existingAccount == null) {
+                val newAccount = EmailAccount(
+                    id = UUID.randomUUID().toString(),
+                    emailAddress = email,
+                    nickname = nickname,
+                    provider = provider
+                )
+                val updatedList = accounts.value + newAccount
+                repository.saveAccounts(updatedList)
+                android.util.Log.d("Debug_MainViewModel", "Added new account: $email")
+            } else {
+                android.util.Log.d("Debug_MainViewModel", "Account already exists: $email. Skipping duplicate insertion.")
+                // Optional: Update the existing account's nickname or details instead if needed
+            }
         }
     }
 
@@ -116,39 +155,81 @@ class MainViewModel(
     }
 
     // --- Gmail Sync Functions ---
+    init {
+        // Optional: If you want it to attempt loading once accounts are loaded,
+        // or you can call it explicitly from your Activity/Fragment/Composable.
+        android.util.Log.d("Debug_MainViewModelDebug", "MainViewModel initialized")
+    }
 
-    fun loadGmailMessages(context: Context, account: GoogleSignInAccount) {
+    fun loadAllDefinedAccounts(context: Context) {
         viewModelScope.launch {
-            val gmailRepo = GmailServiceRepository(context, account)
+            android.util.Log.d("Debug_MainViewModelDebug", "loadAllDefinedAccounts started. Total accounts: ${accounts.value.size}")
 
-            // Fetch recent messages for display
-            val fetchedEmails = gmailRepo.fetchRecentEmails(maxResults = 10)
-            _emails.value = fetchedEmails
+            // Get the list of email addresses explicitly added to your app's database
+            val validAppEmails = accounts.value.map { it.emailAddress }
 
-            // Fetch capped unread count pair (count, isExceeded)
-            val unreadResult = gmailRepo.getUnreadInboxCount()
-            val formattedCount = if (unreadResult.second) {
-                "${unreadResult.first}+"
-            } else {
-                "${unreadResult.first}"
-            }
-            val unreadToday = gmailRepo.getUnreadTodayCount()
+            for (account in accounts.value) {
+                android.util.Log.d("Debug_MainViewModelDebug", "Checking account: ${account.emailAddress}, Provider: ${account.provider}")
 
-            account.email?.let { emailAddress ->
-                _unreadCounts.value = _unreadCounts.value.toMutableMap().apply {
-                    put(emailAddress, formattedCount)
-                }
-                _unreadTodayCounts.value = _unreadTodayCounts.value.toMutableMap().apply {
-                    put(emailAddress, unreadToday.toString())
+                if (account.provider == AccountProvider.GMAIL) {
+                    val token = activeGoogleTokens[account.emailAddress]
+                    android.util.Log.d("Debug_MainViewModelDebug", "Token for ${account.emailAddress} is null/blank: ${token.isNullOrBlank()}")
+
+                    if (!token.isNullOrBlank()) {
+                        val gmailRepo = GmailServiceRepository(
+                            context = context,
+                            emailAddress = account.emailAddress,
+                            tokenProvider = { activeGoogleTokens[account.emailAddress] }
+                        )
+
+                        val unreadResult = gmailRepo.getUnreadInboxCount()
+                        val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
+                        val unreadToday = gmailRepo.getUnreadTodayCount()
+
+                        android.util.Log.d("Debug_MainViewModelDebug", "Fetched count for ${account.emailAddress}: $formattedCount")
+
+                        _unreadCounts.value = _unreadCounts.value.toMutableMap().apply {
+                            put(account.emailAddress, formattedCount)
+                        }
+                        _unreadTodayCounts.value = _unreadTodayCounts.value.toMutableMap().apply {
+                            put(account.emailAddress, unreadToday.toString())
+                        }
+                    } else {
+                        android.util.Log.d("Debug_MainViewModelDebug", "DEBUG_GMAIL: No cached token found for ${account.emailAddress}")
+                    }
                 }
             }
         }
     }
 
-    fun checkAndLoadExistingAccount(context: Context) {
-        val lastSignedInAccount = GoogleSignIn.getLastSignedInAccount(context)
-        if (lastSignedInAccount != null) {
-            loadGmailMessages(context, lastSignedInAccount)
+    // Cache map for GoogleSignInAccount objects
+    private val activeGoogleAccounts = mutableMapOf<String, GoogleSignInAccount>()
+
+    fun cacheGoogleAccount(account: GoogleSignInAccount) {
+        val email = account.email
+        // Ensure we only cache accounts that have been explicitly added to the app
+        if (!email.isNullOrBlank() && accounts.value.any { it.emailAddress.equals(email, ignoreCase = true) }) {
+            activeGoogleAccounts[email] = account
+        }
+    }
+
+    fun cacheSession(email: String, idToken: String) {
+        if (email.isNotBlank() && accounts.value.any { it.emailAddress.equals(email, ignoreCase = true) }) {
+            activeGoogleAccounts[email] = GoogleSignInAccount.fromAccount(android.accounts.Account(email, "com.google"))
+        }
+    }
+
+    private fun refreshDeviceAccountsCache(context: Context) {
+        val manager = android.accounts.AccountManager.get(context)
+        val googleAccounts = manager.getAccountsByType("com.google")
+        val allowedEmails = accounts.value.map { it.emailAddress }
+
+        for (acc in googleAccounts) {
+            // Only cache if the device account matches an account explicitly added to the app
+            if (allowedEmails.contains(acc.name) && !activeGoogleAccounts.containsKey(acc.name)) {
+                activeGoogleAccounts[acc.name] = GoogleSignInAccount.fromAccount(acc)
+                android.util.Log.d("Debug_MainViewModel", "Auto-mapped allowed account: ${acc.name}")
+            }
         }
     }
 }

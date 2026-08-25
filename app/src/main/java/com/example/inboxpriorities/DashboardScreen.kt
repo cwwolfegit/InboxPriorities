@@ -143,6 +143,7 @@ fun DashboardScreen(
                 val accountUnreadToday = unreadTodayCounts[account.emailAddress] ?: "0"
 
                 // Pull formatted API count string for this specific account
+                android.util.Log.d("Debug_Dashboard", "Looking up unread for: ${account.emailAddress}, Available keys: ${unreadCounts.keys}, Result: ${unreadCounts[account.emailAddress]}")
                 val trueAccountTotal = unreadCounts[account.emailAddress] ?: "0"
 
                 val accountPriorityToday = accountEmails.count { !it.isRead && it.isToday && it.priorityLevel != PriorityLevel.NONE }
