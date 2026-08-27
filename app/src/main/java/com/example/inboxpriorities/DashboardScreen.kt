@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -14,12 +15,22 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun DashboardScreen(
+    viewModel: MainViewModel,
     emails: List<Email>,
     rules: List<PriorityRule>,
     accounts: List<EmailAccount>,
     unreadCounts: Map<String, String>,
-    unreadTodayCounts: Map<String, String> // <--- Added this parameter
+    unreadTodayCounts: Map<String, String>
 ) {
+    val context = LocalContext.current
+
+    // This will trigger whenever the accounts list changes (e.g., when Room finishes loading them)
+    LaunchedEffect(key1 = accounts) {
+        if (accounts.isNotEmpty()) {
+            viewModel.loadAllDefinedAccounts(context)
+        }
+    }
+
     // 1. Evaluate all emails against active rules
     val allEvaluatedEmails = remember(rules, emails) {
         val activeRules = rules.filter { it.isEnabled }

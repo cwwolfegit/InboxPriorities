@@ -32,8 +32,12 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val repository = RulesRepository(applicationContext)
+
                 @Suppress("UNCHECKED_CAST")
-                return MainViewModel(application = application, repository = repository) as T
+                return MainViewModel(
+                    application = application,
+                    repository = repository
+                ) as T
             }
         }
     }
@@ -101,6 +105,7 @@ class MainActivity : ComponentActivity() {
                         when (selectedTab) {
                             AppTab.DASHBOARD -> {
                                 DashboardScreen(
+                                    viewModel = viewModel,
                                     emails = emails,
                                     rules = rules,
                                     accounts = accounts,
