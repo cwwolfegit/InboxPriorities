@@ -23,6 +23,7 @@ fun DashboardScreen(
     unreadTodayCounts: Map<String, String>
 ) {
     val context = LocalContext.current
+    val isLoading by viewModel.isLoading.collectAsState()
 
     // This will trigger whenever the accounts list changes (e.g., when Room finishes loading them)
     LaunchedEffect(key1 = accounts) {
@@ -197,11 +198,30 @@ fun DashboardScreen(
 
                             Spacer(modifier = Modifier.height(2.dp))
 
-                            Text(
-                                text = "$accountUnreadToday today · $trueAccountTotal total unread",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            // Show spinner while loading, otherwise display counts
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "$accountUnreadToday today ·",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(12.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    Text(
+                                        text = "$trueAccountTotal total unread",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(8.dp))

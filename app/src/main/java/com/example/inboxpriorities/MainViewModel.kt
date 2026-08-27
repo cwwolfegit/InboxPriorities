@@ -162,49 +162,79 @@ class MainViewModel(
     }
 
     private var hasLoadedAccountsOnStartup = false
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     fun loadAllDefinedAccounts(context: Context) {
         if (hasLoadedAccountsOnStartup) return
         hasLoadedAccountsOnStartup = true
 
+        _isLoading.value = true
         viewModelScope.launch {
-            android.util.Log.d("Debug_MainViewModel", "--- START loadAllDefinedAccounts ---")
-            android.util.Log.d("Debug_MainViewModel", "Accounts in memory count: ${accounts.value.size}")
-            android.util.Log.d("Debug_MainViewModel", "Active tokens currently cached: ${activeGoogleTokens.keys}")
+            try {
+                android.util.Log.d("Debug_MainViewModel", "--- START loadAllDefinedAccounts ---")
+                android.util.Log.d(
+                    "Debug_MainViewModel",
+                    "Accounts in memory count: ${accounts.value.size}"
+                )
+                android.util.Log.d(
+                    "Debug_MainViewModel",
+                    "Active tokens currently cached: ${activeGoogleTokens.keys}"
+                )
 
-            for (account in accounts.value) {
-                android.util.Log.d("Debug_MainViewModel", "Checking account: ${account.emailAddress}")
+                for (account in accounts.value) {
+                    android.util.Log.d(
+                        "Debug_MainViewModel",
+                        "Checking account: ${account.emailAddress}"
+                    )
 
-                if (account.provider == AccountProvider.GMAIL) {
-                    val token = activeGoogleTokens[account.emailAddress]
-                    android.util.Log.d("Debug_MainViewModel", "Token lookup for '${account.emailAddress}': found = ${!token.isNullOrBlank()}")
-
-                    if (!token.isNullOrBlank()) {
-                        val gmailRepo = GmailServiceRepository(
-                            context = context,
-                            emailAddress = account.emailAddress,
-                            tokenProvider = { activeGoogleTokens[account.emailAddress] }
+                    if (account.provider == AccountProvider.GMAIL) {
+                        val token = activeGoogleTokens[account.emailAddress]
+                        android.util.Log.d(
+                            "Debug_MainViewModel",
+                            "Token lookup for '${account.emailAddress}': found = ${!token.isNullOrBlank()}"
                         )
 
-                        val unreadResult = gmailRepo.getUnreadInboxCount()
-                        android.util.Log.d("Debug_MainViewModel", "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}")
+                        if (!token.isNullOrBlank()) {
+                            val gmailRepo = GmailServiceRepository(
+                                context = context,
+                                emailAddress = account.emailAddress,
+                                tokenProvider = { activeGoogleTokens[account.emailAddress] }
+                            )
 
-                        val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
-                        val unreadToday = gmailRepo.getUnreadTodayCount()
+                            val unreadResult = gmailRepo.getUnreadInboxCount()
+                            android.util.Log.d(
+                                "Debug_MainViewModel",
+                                "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}"
+                            )
 
-                        android.util.Log.d("Debug_MainViewModel", "Fetched count for ${account.emailAddress}: $formattedCount")
+                            val formattedCount =
+                                if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
+                            val unreadToday = gmailRepo.getUnreadTodayCount()
 
-                        _unreadCounts.value = _unreadCounts.value.toMutableMap().apply {
-                            put(account.emailAddress, formattedCount)
+                            android.util.Log.d(
+                                "Debug_MainViewModel",
+                                "Fetched count for ${account.emailAddress}: $formattedCount"
+                            )
+
+                            _unreadCounts.value = _unreadCounts.value.toMutableMap().apply {
+                                put(account.emailAddress, formattedCount)
+                            }
+                            _unreadTodayCounts.value =
+                                _unreadTodayCounts.value.toMutableMap().apply {
+                                    put(account.emailAddress, unreadToday.toString())
+                                }
+                        } else {
+                            android.util.Log.d(
+                                "Debug_MainViewModel",
+                                "SKIPPED API call for ${account.emailAddress}: No cached token available at startup."
+                            )
                         }
-                        _unreadTodayCounts.value = _unreadTodayCounts.value.toMutableMap().apply {
-                            put(account.emailAddress, unreadToday.toString())
-                        }
-                    } else {
-                        android.util.Log.d("Debug_MainViewModel", "SKIPPED API call for ${account.emailAddress}: No cached token available at startup.")
                     }
                 }
+            } finally {
+                _isLoading.value = false
+                android.util.Log.d("Debug_MainViewModel", "--- END loadAllDefinedAccounts ---")
             }
-            android.util.Log.d("Debug_MainViewModel", "--- END loadAllDefinedAccounts ---")
         }
     }
 
