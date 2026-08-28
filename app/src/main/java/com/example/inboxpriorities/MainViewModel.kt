@@ -71,6 +71,8 @@ class MainViewModel(
     val unreadCounts: StateFlow<Map<String, String>> = _unreadCounts.asStateFlow()
     private val _unreadTodayCounts = MutableStateFlow<Map<String, String>>(emptyMap())
     val unreadTodayCounts: StateFlow<Map<String, String>> = _unreadTodayCounts.asStateFlow()
+    private val _accountErrors = MutableStateFlow<Map<String, String>>(emptyMap())
+    val accountErrors: StateFlow<Map<String, String>> = _accountErrors.asStateFlow()
 
     // --- Priority Rules Functions ---
 
@@ -202,27 +204,33 @@ class MainViewModel(
                             )
 
                             val unreadResult = gmailRepo.getUnreadInboxCount()
-                            android.util.Log.d(
-                                "Debug_MainViewModel",
-                                "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}"
-                            )
-
-                            val formattedCount =
-                                if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
                             val unreadToday = gmailRepo.getUnreadTodayCount()
 
                             android.util.Log.d(
                                 "Debug_MainViewModel",
-                                "Fetched count for ${account.emailAddress}: $formattedCount"
+                                "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
                             )
 
-                            _unreadCounts.value = _unreadCounts.value.toMutableMap().apply {
-                                put(account.emailAddress, formattedCount)
-                            }
-                            _unreadTodayCounts.value =
-                                _unreadTodayCounts.value.toMutableMap().apply {
+                            if (unreadResult.first == -1 || unreadToday == -1) {
+                                // Flag this account with an error instead of crashing the count labels
+                                _accountErrors.value = _accountErrors.value.toMutableMap().apply {
+                                    put(account.emailAddress, "Sign-in Expired")
+                                }
+                            } else {
+                                // Clear any previous error and update with clean numbers
+                                _accountErrors.value = _accountErrors.value.toMutableMap().apply {
+                                    remove(account.emailAddress)
+                                }
+
+                                val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
+
+                                _unreadCounts.value = _unreadCounts.value.toMutableMap().apply {
+                                    put(account.emailAddress, formattedCount)
+                                }
+                                _unreadTodayCounts.value = _unreadTodayCounts.value.toMutableMap().apply {
                                     put(account.emailAddress, unreadToday.toString())
                                 }
+                            }
                         } else {
                             android.util.Log.d(
                                 "Debug_MainViewModel",

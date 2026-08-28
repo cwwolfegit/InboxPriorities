@@ -84,6 +84,13 @@ class GmailServiceRepository(
                 )
             }
             Log.d(TAG, "Successfully parsed ${emailList.size} emails.")
+        } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
+            if (e.statusCode == 401) {
+                Log.e(TAG, "Authentication expired (401) for $emailAddress in fetchRecentEmails")
+                // Handle 401 specifically (e.g., return empty or a distinct error marker)
+            } else {
+                Log.e(TAG, "Google JSON exception in fetchRecentEmails for $emailAddress: ${e.message}", e)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Exception in fetchRecentEmails for $emailAddress: ${e.message}", e)
             e.printStackTrace()
@@ -119,6 +126,16 @@ class GmailServiceRepository(
             val count = resultEstimate?.toInt() ?: messages.size
             Log.d(TAG, "Calculated unread count for $emailAddress: $count")
             return@withContext Pair(count, false)
+        } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
+            if (e.statusCode == 401) {
+                Log.e(TAG, "Authentication expired (401) for $emailAddress")
+                // You can return a special indicator or throw a custom AuthException
+                // so your ViewModel knows to display a "Sign-in expired" warning.
+                return@withContext Pair(-1, false) // Using -1 as an error flag for count
+            } else {
+                Log.e(TAG, "Google JSON exception in getUnreadInboxCount for $emailAddress: ${e.message}", e)
+                return@withContext Pair(0, false)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Exception in getUnreadInboxCount for $emailAddress: ${e.message}", e)
             e.printStackTrace()
@@ -140,10 +157,18 @@ class GmailServiceRepository(
             val count = response.resultSizeEstimate?.toInt() ?: (response.threads?.size ?: 0)
             Log.d(TAG, "Calculated unread today count for $emailAddress: $count")
             count
+        } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
+            if (e.statusCode == 401) {
+                Log.e(TAG, "Authentication expired (401) for $emailAddress in getUnreadTodayCount")
+                return@withContext -1
+            } else {
+                Log.e(TAG, "Google JSON exception in getUnreadTodayCount for $emailAddress: ${e.message}", e)
+                return@withContext 0
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Exception in getUnreadTodayCount for $emailAddress: ${e.message}", e)
             e.printStackTrace()
-            0
+            return@withContext 0
         }
     }
 }
