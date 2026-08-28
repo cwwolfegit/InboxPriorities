@@ -84,4 +84,7 @@ dependencies {
     // Gmail API Client
     implementation("com.google.api-client:google-api-client-android:2.6.0")
     implementation("com.google.apis:google-api-services-gmail:v1-rev20240520-2.0.0")
+
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
+
 }

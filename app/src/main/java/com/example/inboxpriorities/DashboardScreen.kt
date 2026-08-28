@@ -1,5 +1,6 @@
 package com.example.inboxpriorities
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 
 @Composable
 fun DashboardScreen(
@@ -24,6 +27,7 @@ fun DashboardScreen(
     unreadTodayCounts: Map<String, String>
 ) {
     val context = LocalContext.current
+    val googleAuthHelper = remember { GoogleAuthHelper(context) }
     val isLoading by viewModel.isLoading.collectAsState()
     val accountErrors by viewModel.accountErrors.collectAsState()
 
@@ -210,13 +214,40 @@ fun DashboardScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 8.dp)
+                                        .clickable {
+                                            val authRequest = googleAuthHelper.createAuthorizationRequest(account.emailAddress)
+
+                                            googleAuthHelper.authClient.authorize(authRequest)
+                                                .addOnSuccessListener { authorizationResult ->
+                                                    if (authorizationResult.accessToken != null) {
+                                                        val newToken = authorizationResult.accessToken!!
+                                                        // Call your view model method to update the token and clear the error
+                                                        viewModel.retryAccountAuth(account.emailAddress, newToken, context)
+                                                    }
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    android.util.Log.e("Debug_Dashboard", "Failed to re-authorize account: ${account.emailAddress}", e)
+                                                }
+                                        }
                                 ) {
-                                    Text(
-                                        text = "Sign-in Expired",
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(12.dp)
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Sign-in Expired (Tap to fix)",
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        // Optional icon to hint that it's interactive
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = "Retry Sign-in",
+                                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             } else {
                                 Row(
