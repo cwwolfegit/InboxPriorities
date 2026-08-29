@@ -73,6 +73,8 @@ class MainViewModel(
     val unreadTodayCounts: StateFlow<Map<String, String>> = _unreadTodayCounts.asStateFlow()
     private val _accountErrors = MutableStateFlow<Map<String, String>>(emptyMap())
     val accountErrors: StateFlow<Map<String, String>> = _accountErrors.asStateFlow()
+    private val _ruleError = MutableStateFlow<String?>(null)
+    val ruleError: StateFlow<String?> = _ruleError.asStateFlow()
 
     // --- Priority Rules Functions ---
 
@@ -85,19 +87,48 @@ class MainViewModel(
         }
     }
 
-    fun addRule(name: String, pattern: String, ruleType: RuleType, priorityLevel: PriorityLevel) {
+    fun clearRuleError() {
+        _ruleError.value = null
+    }
+
+    fun addRule(name: String, pattern: String, ruleType: RuleType, priorityLevel: PriorityLevel, editingRuleId: String? = null): Boolean {
+        val isDuplicate = rules.value.any { rule ->
+            if (editingRuleId != null && rule.id == editingRuleId) return@any false
+
+            rule.ruleType == ruleType &&
+                    rule.matchPattern.equals(pattern.trim(), ignoreCase = true)
+        }
+
+        if (isDuplicate) {
+            _ruleError.value = "A rule with this type and match pattern already exists."
+            return false // Save blocked
+        }
+
+        _ruleError.value = null
+
         viewModelScope.launch {
-            val newRule = PriorityRule(
-                id = UUID.randomUUID().toString(),
-                name = name,
-                matchPattern = pattern,
-                ruleType = ruleType,
-                priorityLevel = priorityLevel,
-                isEnabled = true
-            )
-            val updatedList = rules.value + newRule
+            val updatedList = if (editingRuleId != null) {
+                rules.value.map { rule ->
+                    if (rule.id == editingRuleId) {
+                        rule.copy(name = name, matchPattern = pattern, ruleType = ruleType, priorityLevel = priorityLevel)
+                    } else {
+                        rule
+                    }
+                }
+            } else {
+                val newRule = PriorityRule(
+                    id = UUID.randomUUID().toString(),
+                    name = name,
+                    matchPattern = pattern,
+                    ruleType = ruleType,
+                    priorityLevel = priorityLevel,
+                    isEnabled = true
+                )
+                rules.value + newRule
+            }
             repository.saveRules(updatedList)
         }
+        return true // Save succeeded
     }
 
     fun updateRule(oldRule: PriorityRule, newRule: PriorityRule) {

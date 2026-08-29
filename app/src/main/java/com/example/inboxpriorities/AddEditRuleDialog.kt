@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun AddEditRuleDialog(
     ruleToEdit: PriorityRule? = null,
+    errorMessage: String? = null,
     onDismissRequest: () -> Unit,
     onSaveRule: (name: String, pattern: String, ruleType: RuleType, priorityLevel: PriorityLevel) -> Unit
 ) {
@@ -45,6 +46,7 @@ fun AddEditRuleDialog(
                     text = "Rule Type",
                     style = MaterialTheme.typography.labelLarge
                 )
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = selectedRuleType == RuleType.SENDER_CONTAINS,
@@ -55,6 +57,14 @@ fun AddEditRuleDialog(
                         selected = selectedRuleType == RuleType.SUBJECT_CONTAINS,
                         onClick = { selectedRuleType = RuleType.SUBJECT_CONTAINS },
                         label = { Text("Subject") }
+                    )
+                }
+                errorMessage?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
 
@@ -73,7 +83,7 @@ fun AddEditRuleDialog(
                 }
             }
         },
-        confirmButton = {
+                confirmButton = {
             TextButton(
                 enabled = name.isNotBlank() && matchPattern.isNotBlank(),
                 onClick = {

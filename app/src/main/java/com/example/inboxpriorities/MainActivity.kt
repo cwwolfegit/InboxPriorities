@@ -129,16 +129,19 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             AppTab.RULES -> {
+                                val ruleError by viewModel.ruleError.collectAsState()
                                 RulesScreen(
                                     rules = rules,
+                                    ruleError = ruleError,
+                                    onClearError = { viewModel.clearRuleError() },
                                     onToggleRule = { rule, isEnabled ->
                                         viewModel.toggleRule(rule, isEnabled)
                                     },
                                     onAddRule = { name, pattern, ruleType, priority ->
-                                        viewModel.addRule(name, pattern, ruleType, priority)
+                                        viewModel.addRule(name, pattern, ruleType, priority, null)
                                     },
                                     onUpdateRule = { oldRule, newRule ->
-                                        viewModel.updateRule(oldRule, newRule)
+                                        viewModel.addRule(newRule.name, newRule.matchPattern, newRule.ruleType, newRule.priorityLevel, oldRule.id)
                                     },
                                     onDeleteRule = { rule ->
                                         viewModel.deleteRule(rule)

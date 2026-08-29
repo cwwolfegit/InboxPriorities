@@ -15,9 +15,11 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun RulesScreen(
     rules: List<PriorityRule>,
+    ruleError: String?,
+    onClearError: () -> Unit,
     onToggleRule: (PriorityRule, Boolean) -> Unit,
-    onAddRule: (name: String, pattern: String, ruleType: RuleType, priorityLevel: PriorityLevel) -> Unit,
-    onUpdateRule: (oldRule: PriorityRule, newRule: PriorityRule) -> Unit,
+    onAddRule: (name: String, pattern: String, ruleType: RuleType, priorityLevel: PriorityLevel) -> Boolean,
+    onUpdateRule: (oldRule: PriorityRule, newRule: PriorityRule) -> Boolean,
     onDeleteRule: (PriorityRule) -> Unit,
     modifier: Modifier = Modifier,
     isProUser: Boolean = false,
@@ -165,10 +167,16 @@ fun RulesScreen(
         // Show Dialog when user taps "+ Add Rule"
         if (showAddDialog) {
             AddEditRuleDialog(
-                onDismissRequest = { showAddDialog = false },
-                onSaveRule = { name, pattern, ruleType, priority ->
-                    onAddRule(name, pattern, ruleType, priority)
+                errorMessage = ruleError,
+                onDismissRequest = {
+                    onClearError()
                     showAddDialog = false
+                },
+                onSaveRule = { name, pattern, ruleType, priority ->
+                    val isSuccess = onAddRule(name, pattern, ruleType, priority)
+                    if (isSuccess) {
+                        showAddDialog = false
+                    }
                 }
             )
         }
@@ -177,7 +185,11 @@ fun RulesScreen(
         ruleToEdit?.let { targetRule ->
             AddEditRuleDialog(
                 ruleToEdit = targetRule,
-                onDismissRequest = { ruleToEdit = null },
+                errorMessage = ruleError,
+                onDismissRequest = {
+                    onClearError()
+                    ruleToEdit = null
+                },
                 onSaveRule = { name, pattern, ruleType, priority ->
                     val updatedRule = targetRule.copy(
                         name = name,
@@ -185,8 +197,10 @@ fun RulesScreen(
                         ruleType = ruleType,
                         priorityLevel = priority
                     )
-                    onUpdateRule(targetRule, updatedRule)
-                    ruleToEdit = null
+                    val isSuccess = onUpdateRule(targetRule, updatedRule)
+                    if (isSuccess) {
+                        ruleToEdit = null
+                    }
                 }
             )
         }
