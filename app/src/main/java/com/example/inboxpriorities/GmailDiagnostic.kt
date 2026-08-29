@@ -13,7 +13,7 @@ import com.google.gson.GsonBuilder
 class GmailDiagnostic {
 
     companion object {
-        private const val TAG = "GmailDiagnostic"
+        private const val TAG = "DEBUG_GmailDiagnostic"
         private const val TARGET_EMAIL = "cwwfun123@gmail.com"
     }
 

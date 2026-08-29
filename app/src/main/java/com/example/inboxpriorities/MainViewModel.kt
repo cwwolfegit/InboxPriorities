@@ -285,11 +285,14 @@ class MainViewModel(
     fun retryAccountAuth(email: String, newToken: String, context: Context) {
         if (email.isNotBlank() && newToken.isNotBlank()) {
             cacheGoogleToken(email, newToken)
-            // Clear the error state for this account
+
             _accountErrors.value = _accountErrors.value.toMutableMap().apply {
                 remove(email)
             }
-            // Reload counts for the accounts
+
+            // Allow the accounts to reload by resetting the startup flag
+            hasLoadedAccountsOnStartup = false
+
             viewModelScope.launch {
                 loadAllDefinedAccounts(context)
             }
