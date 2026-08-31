@@ -171,4 +171,44 @@ class GmailServiceRepository(
             return@withContext 0
         }
     }
+    suspend fun fetchTodayUnreadEmails(maxResults: Long = 50): List<Email> = withContext(Dispatchers.IO) {
+        val emailList = mutableListOf<Email>()
+        val service = getGmailService() ?: return@withContext emptyList()
+
+        try {
+            val todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
+            val response = service.users().messages().list("me")
+                .setQ("label:unread category:primary after:$todayStr")
+                .setMaxResults(maxResults)
+                .execute()
+
+            val messages = response.messages ?: emptyList()
+
+            for (messageItem in messages) {
+                val fullMessage = service.users().messages()
+                    .get("me", messageItem.id)
+                    .setFormat("full")
+                    .execute()
+
+                val headers = fullMessage.payload?.headers ?: emptyList()
+                val sender = headers.firstOrNull { it.name.equals("From", ignoreCase = true) }?.value ?: "Unknown Sender"
+                val subject = headers.firstOrNull { it.name.equals("Subject", ignoreCase = true) }?.value ?: "No Subject"
+                val snippet = fullMessage.snippet ?: ""
+
+                emailList.add(
+                    Email(
+                        id = fullMessage.id,
+                        sender = sender,
+                        subject = subject,
+                        body = snippet,
+                        recipientAccount = emailAddress
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception in fetchTodayUnreadEmails for $emailAddress: ${e.message}", e)
+        }
+
+        return@withContext emailList
+    }
 }

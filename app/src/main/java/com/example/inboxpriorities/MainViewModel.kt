@@ -75,6 +75,10 @@ class MainViewModel(
     val accountErrors: StateFlow<Map<String, String>> = _accountErrors.asStateFlow()
     private val _ruleError = MutableStateFlow<String?>(null)
     val ruleError: StateFlow<String?> = _ruleError.asStateFlow()
+    private val _priorityUnreadCounts = MutableStateFlow<Map<String, String>>(emptyMap())
+    val priorityUnreadCounts: StateFlow<Map<String, String>> = _priorityUnreadCounts.asStateFlow()
+    private val _priorityTodayCounts = MutableStateFlow<Map<String, String>>(emptyMap())
+    val priorityTodayCounts: StateFlow<Map<String, String>> = _priorityTodayCounts.asStateFlow()
 
     // --- Priority Rules Functions ---
 
@@ -242,6 +246,10 @@ class MainViewModel(
                                 "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
                             )
 
+                            // Fetch message payloads for evaluation
+                            val recentEmails = gmailRepo.fetchRecentEmails(maxResults = 200)
+                            val todayUnreadEmails = gmailRepo.fetchTodayUnreadEmails(maxResults = 100)
+
                             if (unreadResult.first == -1 || unreadToday == -1) {
                                 // Flag this account with an error instead of crashing the count labels
                                 _accountErrors.value = _accountErrors.value.toMutableMap().apply {
@@ -253,6 +261,23 @@ class MainViewModel(
                                     remove(account.emailAddress)
                                 }
 
+                                // Filter rules applicable to this account or globally
+                                val applicableRules = rules.value.filter { rule ->
+                                    rule.targetAccountId == null || rule.targetAccountId == account.id
+                                }
+
+                                // 1. Total Priority Count
+                                val totalPriorityCount = recentEmails.count { email ->
+                                    val (level, _) = PriorityEvaluator.evaluatePriority(email.sender, email.subject, applicableRules)
+                                    level != PriorityLevel.NONE
+                                }
+
+                                // 2. Today's Priority Count
+                                val todayPriorityCount = todayUnreadEmails.count { email ->
+                                    val (level, _) = PriorityEvaluator.evaluatePriority(email.sender, email.subject, applicableRules)
+                                    level != PriorityLevel.NONE
+                                }
+
                                 val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
 
                                 _unreadCounts.value = _unreadCounts.value.toMutableMap().apply {
@@ -260,6 +285,12 @@ class MainViewModel(
                                 }
                                 _unreadTodayCounts.value = _unreadTodayCounts.value.toMutableMap().apply {
                                     put(account.emailAddress, unreadToday.toString())
+                                }
+                                _priorityUnreadCounts.value = _priorityUnreadCounts.value.toMutableMap().apply {
+                                    put(account.emailAddress, totalPriorityCount.toString())
+                                }
+                                _priorityTodayCounts.value = _priorityTodayCounts.value.toMutableMap().apply {
+                                    put(account.emailAddress, todayPriorityCount.toString())
                                 }
                             }
                         } else {

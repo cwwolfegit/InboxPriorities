@@ -31,6 +31,13 @@ fun DashboardScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val accountErrors by viewModel.accountErrors.collectAsState()
 
+    val priorityUnreadMap by viewModel.priorityUnreadCounts.collectAsState()
+    val priorityTodayMap by viewModel.priorityTodayCounts.collectAsState()
+
+// Calculate aggregate top-level priority counts from the ViewModel maps
+    val totalPriorityTodaySum = priorityTodayMap.values.sumOf { it.toIntOrNull() ?: 0 }
+    val totalPriorityTotalSum = priorityUnreadMap.values.sumOf { it.toIntOrNull() ?: 0 }
+
     // This will trigger whenever the accounts list changes (e.g., when Room finishes loading them)
     LaunchedEffect(key1 = accounts) {
         if (accounts.isNotEmpty()) {
@@ -116,8 +123,8 @@ fun DashboardScreen(
                 )
                 MetricCard(
                     title = "Priority Unread",
-                    mainValue = "$priorityUnreadToday today",
-                    subValue = "$priorityUnreadTotal total",
+                    mainValue = "$totalPriorityTodaySum today",
+                    subValue = "$totalPriorityTotalSum total",
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -163,9 +170,6 @@ fun DashboardScreen(
                 // Pull formatted API count string for this specific account
                 android.util.Log.d("Debug_Dashboard", "Looking up unread for: ${account.emailAddress}, Available keys: ${unreadCounts.keys}, Result: ${unreadCounts[account.emailAddress]}")
                 val trueAccountTotal = unreadCounts[account.emailAddress] ?: "0"
-
-                val accountPriorityToday = accountEmails.count { !it.isRead && it.isToday && it.priorityLevel != PriorityLevel.NONE }
-                val accountPriorityTotal = accountEmails.count { !it.isRead && it.priorityLevel != PriorityLevel.NONE }
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -279,8 +283,12 @@ fun DashboardScreen(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        // Dynamic priority badge state
-                        val hasPriority = accountPriorityTotal > 0
+                        val accountPriorityToday = priorityTodayMap[account.emailAddress] ?: "0"
+                        val accountPriorityTotal = priorityUnreadMap[account.emailAddress] ?: "0"
+                        val numericPriorityTotal = accountPriorityTotal.toIntOrNull() ?: 0
+
+// Dynamic priority badge state using the repository-backed counts
+                        val hasPriority = numericPriorityTotal > 0
                         Surface(
                             shape = MaterialTheme.shapes.small,
                             color = if (hasPriority) {
