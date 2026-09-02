@@ -63,9 +63,14 @@ class GmailServiceRepository(
             Log.d(TAG, "Fetched message list size: ${messages.size}")
 
             for (messageItem in messages) {
-                val fullMessage = service.users().messages()
+                /*val fullMessage = service.users().messages()
                     .get("me", messageItem.id)
                     .setFormat("full")
+                    .execute()*/
+                val fullMessage = service.users().messages()
+                    .get("me", messageItem.id)
+                    .setFormat("metadata")
+                    .setMetadataHeaders(listOf("From", "Subject", "Date"))
                     .execute()
 
                 val headers = fullMessage.payload?.headers ?: emptyList()
