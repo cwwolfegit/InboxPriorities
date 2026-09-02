@@ -79,7 +79,8 @@ class MainViewModel(
     val priorityUnreadCounts: StateFlow<Map<String, String>> = _priorityUnreadCounts.asStateFlow()
     private val _priorityTodayCounts = MutableStateFlow<Map<String, String>>(emptyMap())
     val priorityTodayCounts: StateFlow<Map<String, String>> = _priorityTodayCounts.asStateFlow()
-
+    private val _todayPriorityEmailsByAccount = MutableStateFlow<Map<String, List<Email>>>(emptyMap())
+    val todayPriorityEmailsByAccount: StateFlow<Map<String, List<Email>>> = _todayPriorityEmailsByAccount.asStateFlow()
     // --- Priority Rules Functions ---
 
     fun toggleRule(ruleToToggle: PriorityRule, isEnabled: Boolean) {
@@ -218,6 +219,8 @@ class MainViewModel(
                     "Active tokens currently cached: ${activeGoogleTokens.keys}"
                 )
 
+                val allAccountPriorityMap = mutableMapOf<String, List<Email>>()
+
                 for (account in accounts.value) {
                     android.util.Log.d(
                         "Debug_MainViewModel",
@@ -276,7 +279,7 @@ class MainViewModel(
 
                                 var totalPriorityCount = 0
                                 var todayPriorityCount = 0
-                                val todayPriorityEmails = mutableListOf<Email>()
+                                val accountPriorityEmails = mutableListOf<Email>()
 
                                 // 3. Single loop to evaluate counts and today's priority items
                                 for (email in recentEmails) {
@@ -288,7 +291,7 @@ class MainViewModel(
                                         // Check if email timestamp falls within today
                                         if (email.timestamp >= startOfTodayMillis) {
                                             todayPriorityCount++
-                                            todayPriorityEmails.add(email.copy(priorityLevel = level))
+                                            accountPriorityEmails.add(email.copy(priorityLevel = level))
                                         }
                                     }
                                 }
@@ -307,6 +310,10 @@ class MainViewModel(
                                 _priorityTodayCounts.value = _priorityTodayCounts.value.toMutableMap().apply {
                                     put(account.emailAddress, todayPriorityCount.toString())
                                 }
+                                // Store this account's list if it has items
+                                if (accountPriorityEmails.isNotEmpty()) {
+                                    allAccountPriorityMap[account.emailAddress] = accountPriorityEmails
+                                }
                             }
                         } else {
                             android.util.Log.d(
@@ -316,6 +323,8 @@ class MainViewModel(
                         }
                     }
                 }
+                _todayPriorityEmailsByAccount.value = allAccountPriorityMap
+
             } finally {
                 _isLoading.value = false
                 android.util.Log.d("Debug_MainViewModel", "--- END loadAllDefinedAccounts ---")

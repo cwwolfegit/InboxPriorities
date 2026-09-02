@@ -327,6 +327,10 @@ fun DashboardScreen(
                 text = "Priority Emails (Today)",
                 style = MaterialTheme.typography.titleLarge
             )
+            AccountPrioritySection(
+                viewModel = viewModel,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         val hasActiveRules = rules.any { it.isEnabled }
@@ -427,6 +431,75 @@ fun EmailCard(email: Email) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+@Composable
+fun AccountPrioritySection(
+    viewModel: MainViewModel,
+    modifier: Modifier = Modifier
+) {
+    val priorityEmailsByAccount by viewModel.todayPriorityEmailsByAccount.collectAsState()
+
+    // Fixed: properly wrapped with mutableStateOf
+    var expandedAccounts by remember { mutableStateOf(setOf<String>()) }
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        priorityEmailsByAccount.forEach { (emailAddress, emails) ->
+            val isExpanded = expandedAccounts.contains(emailAddress)
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                expandedAccounts = if (isExpanded) {
+                                    expandedAccounts - emailAddress
+                                } else {
+                                    expandedAccounts + emailAddress
+                                }
+                            },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = emailAddress,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Badge { Text(text = "${emails.size}") }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            // Swapped to standard icons if extended pack isn't linked,
+                            // or make sure to import Icons.Filled.KeyboardArrowDown/Up
+                            Text(
+                                text = if (isExpanded) "▲" else "▼",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    if (isExpanded) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        emails.forEach { email ->
+                            EmailCard(email = email)
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+                    }
+                }
+            }
         }
     }
 }
