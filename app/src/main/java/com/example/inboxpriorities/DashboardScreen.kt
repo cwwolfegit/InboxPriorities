@@ -33,8 +33,10 @@ fun DashboardScreen(
 
     val priorityUnreadMap by viewModel.priorityUnreadCounts.collectAsState()
     val priorityTodayMap by viewModel.priorityTodayCounts.collectAsState()
+    val priorityEmailsByAccount by viewModel.todayPriorityEmailsByAccount.collectAsState()
+    var expandedAccounts by remember { mutableStateOf(setOf<String>()) }
 
-// Calculate aggregate top-level priority counts from the ViewModel maps
+    // Calculate aggregate top-level priority counts from the ViewModel maps
     val totalPriorityTodaySum = priorityTodayMap.values.sumOf { it.toIntOrNull() ?: 0 }
     val totalPriorityTotalSum = priorityUnreadMap.values.sumOf { it.toIntOrNull() ?: 0 }
 
@@ -61,26 +63,7 @@ fun DashboardScreen(
     }
 
     // 2. Dynamic top summary calculations
-    val priorityUnreadToday = allEvaluatedEmails.count {
-        !it.isRead && it.isToday && it.priorityLevel != PriorityLevel.NONE
-    }
-    val priorityUnreadTotal = allEvaluatedEmails.count {
-        !it.isRead && it.priorityLevel != PriorityLevel.NONE
-    }
-
-    // 3. Filtered & sorted list for the Priority Emails section
-    val priorityEmails = remember(allEvaluatedEmails) {
-        allEvaluatedEmails
-            .filter { it.priorityLevel != PriorityLevel.NONE }
-            .sortedByDescending { email ->
-                when (email.priorityLevel) {
-                    PriorityLevel.HIGH -> 3
-                    PriorityLevel.MEDIUM -> 2
-                    PriorityLevel.LOW -> 1
-                    PriorityLevel.NONE -> 0
-                }
-            }
-    }
+    val hasActiveRules = rules.any { it.isEnabled }
 
     LazyColumn(
         modifier = Modifier
@@ -130,7 +113,7 @@ fun DashboardScreen(
             }
         }
 
-        // --- 2. ACCOUNTS BREAKDOWN ---
+        // --- 2. ACCOUNTS BREAKDOWN & INLINE ACCORDIONS ---
         item {
             Text(
                 text = "Accounts",
@@ -161,15 +144,15 @@ fun DashboardScreen(
             }
         } else {
             items(accounts, key = { it.id }) { account ->
-                // Account-specific local counts for today's filter
-                val accountEmails = allEvaluatedEmails.filter { email ->
-                    email.recipientAccount.equals(account.emailAddress, ignoreCase = true)
-                }
+                val accountEmails = priorityEmailsByAccount[account.emailAddress] ?: emptyList()
+                val isExpanded = expandedAccounts.contains(account.emailAddress)
                 val accountUnreadToday = unreadTodayCounts[account.emailAddress] ?: "0"
-
-                // Pull formatted API count string for this specific account
-                android.util.Log.d("Debug_Dashboard", "Looking up unread for: ${account.emailAddress}, Available keys: ${unreadCounts.keys}, Result: ${unreadCounts[account.emailAddress]}")
                 val trueAccountTotal = unreadCounts[account.emailAddress] ?: "0"
+
+                val accountPriorityToday = priorityTodayMap[account.emailAddress] ?: "0"
+                val accountPriorityTotal = priorityUnreadMap[account.emailAddress] ?: "0"
+                val numericPriorityTotal = accountPriorityTotal.toIntOrNull() ?: 0
+                val hasPriority = numericPriorityTotal > 0
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -177,164 +160,181 @@ fun DashboardScreen(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(16.dp)
                     ) {
-                        val providerLabel = account.provider.name.lowercase().replaceFirstChar { it.uppercase() }
-                        val titleText = if (account.nickname.isNotBlank()) {
-                            "${account.nickname} ($providerLabel)"
-                        } else {
-                            account.emailAddress
-                        }
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = titleText,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            if (account.nickname.isNotBlank()) {
-                                Text(
-                                    text = account.emailAddress,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (hasPriority) {
+                                        Modifier.clickable {
+                                            expandedAccounts = if (isExpanded) {
+                                                expandedAccounts - account.emailAddress
+                                            } else {
+                                                expandedAccounts + account.emailAddress
+                                            }
+                                        }
+                                    } else Modifier
+                                ),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val providerLabel = account.provider.name.lowercase().replaceFirstChar { it.uppercase() }
+                            val titleText = if (account.nickname.isNotBlank()) {
+                                "${account.nickname} ($providerLabel)"
+                            } else {
+                                account.emailAddress
                             }
 
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = titleText,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
 
-                            // Show error banner or standard counts
-                            val errorText = accountErrors[account.emailAddress]
-
-                            if (errorText != null) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.errorContainer,
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 8.dp)
-                                        .clickable {
-                                            val authRequest = googleAuthHelper.createAuthorizationRequest(account.emailAddress)
-
-                                            googleAuthHelper.authClient.authorize(authRequest)
-                                                .addOnSuccessListener { authorizationResult ->
-                                                    if (authorizationResult.accessToken != null) {
-                                                        val newToken = authorizationResult.accessToken!!
-                                                        // Call your view model method to update the token and clear the error
-                                                        viewModel.retryAccountAuth(account.emailAddress, newToken, context)
-                                                    }
-                                                }
-                                                .addOnFailureListener { e ->
-                                                    android.util.Log.e("Debug_Dashboard", "Failed to re-authorize account: ${account.emailAddress}", e)
-                                                }
-                                        }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Sign-in Expired (Tap to fix)",
-                                            color = MaterialTheme.colorScheme.onErrorContainer,
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                        // Optional icon to hint that it's interactive
-                                        Icon(
-                                            imageVector = Icons.Default.Refresh,
-                                            contentDescription = "Retry Sign-in",
-                                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-                            } else {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier.padding(top = 8.dp)
-                                ) {
+                                if (account.nickname.isNotBlank()) {
                                     Text(
-                                        text = "$accountUnreadToday today ·",
+                                        text = account.emailAddress,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    if (isLoading) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(12.dp),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    } else {
+                                }
+
+                                Spacer(modifier = Modifier.height(2.dp))
+
+                                val errorText = accountErrors[account.emailAddress]
+
+                                if (errorText != null) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.errorContainer,
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp)
+                                            .clickable {
+                                                val authRequest = googleAuthHelper.createAuthorizationRequest(account.emailAddress)
+
+                                                googleAuthHelper.authClient.authorize(authRequest)
+                                                    .addOnSuccessListener { authorizationResult ->
+                                                        if (authorizationResult.accessToken != null) {
+                                                            val newToken = authorizationResult.accessToken!!
+                                                            viewModel.retryAccountAuth(account.emailAddress, newToken, context)
+                                                        }
+                                                    }
+                                                    .addOnFailureListener { e ->
+                                                        android.util.Log.e("Debug_Dashboard", "Failed to re-authorize account: ${account.emailAddress}", e)
+                                                    }
+                                            }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(12.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Sign-in Expired (Tap to fix)",
+                                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                            Icon(
+                                                imageVector = Icons.Default.Refresh,
+                                                contentDescription = "Retry Sign-in",
+                                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    ) {
                                         Text(
-                                            text = "$trueAccountTotal total unread",
+                                            text = "$accountUnreadToday today ·",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+                                        if (isLoading) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(12.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        } else {
+                                            Text(
+                                                text = "$trueAccountTotal total unread",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = MaterialTheme.shapes.small,
+                                    color = if (hasPriority) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerHigh
+                                    }
+                                ) {
+                                    val badgeText = when {
+                                        !hasPriority -> "No priority"
+                                        accountPriorityToday == accountPriorityTotal -> "$accountPriorityToday priority"
+                                        else -> "$accountPriorityToday today · $accountPriorityTotal total priority"
+                                    }
+
+                                    Text(
+                                        text = badgeText,
+                                        color = if (hasPriority) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+
+                                if (hasPriority) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = if (isExpanded) "▲" else "▼",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        // Nested Expandable Email List inside the Account Card
+                        if (isExpanded && accountEmails.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            HorizontalDivider()
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                        val accountPriorityToday = priorityTodayMap[account.emailAddress] ?: "0"
-                        val accountPriorityTotal = priorityUnreadMap[account.emailAddress] ?: "0"
-                        val numericPriorityTotal = accountPriorityTotal.toIntOrNull() ?: 0
-
-// Dynamic priority badge state using the repository-backed counts
-                        val hasPriority = numericPriorityTotal > 0
-                        Surface(
-                            shape = MaterialTheme.shapes.small,
-                            color = if (hasPriority) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerHigh
+                            accountEmails.forEach { email ->
+                                EmailCard(email = email)
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
-                        ) {
-                            val badgeText = when {
-                                !hasPriority -> "No priority"
-                                accountPriorityToday == accountPriorityTotal -> "$accountPriorityToday priority"
-                                else -> "$accountPriorityToday today · $accountPriorityTotal total priority"
-                            }
-
-                            Text(
-                                text = badgeText,
-                                color = if (hasPriority) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
                         }
                     }
                 }
             }
         }
 
-        // --- 3. DETAIL EMAIL LIST ---
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Priority Emails (Today)",
-                style = MaterialTheme.typography.titleLarge
-            )
-            AccountPrioritySection(
-                viewModel = viewModel,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        val hasActiveRules = rules.any { it.isEnabled }
-
+        // --- 3. ACTIVE RULES WARNING ---
         if (!hasActiveRules) {
             item {
                 Card(
@@ -355,10 +355,6 @@ fun DashboardScreen(
                             .padding(16.dp)
                     )
                 }
-            }
-        } else {
-            items(priorityEmails, key = { it.id }) { email ->
-                EmailCard(email = email)
             }
         }
     }
@@ -431,75 +427,6 @@ fun EmailCard(email: Email) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-    }
-}
-@Composable
-fun AccountPrioritySection(
-    viewModel: MainViewModel,
-    modifier: Modifier = Modifier
-) {
-    val priorityEmailsByAccount by viewModel.todayPriorityEmailsByAccount.collectAsState()
-
-    // Fixed: properly wrapped with mutableStateOf
-    var expandedAccounts by remember { mutableStateOf(setOf<String>()) }
-
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        priorityEmailsByAccount.forEach { (emailAddress, emails) ->
-            val isExpanded = expandedAccounts.contains(emailAddress)
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                expandedAccounts = if (isExpanded) {
-                                    expandedAccounts - emailAddress
-                                } else {
-                                    expandedAccounts + emailAddress
-                                }
-                            },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = emailAddress,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Badge { Text(text = "${emails.size}") }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            // Swapped to standard icons if extended pack isn't linked,
-                            // or make sure to import Icons.Filled.KeyboardArrowDown/Up
-                            Text(
-                                text = if (isExpanded) "▲" else "▼",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    if (isExpanded) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        HorizontalDivider()
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        emails.forEach { email ->
-                            EmailCard(email = email)
-                            Spacer(modifier = Modifier.height(4.dp))
-                        }
-                    }
-                }
-            }
         }
     }
 }
