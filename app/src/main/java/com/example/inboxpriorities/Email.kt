@@ -8,5 +8,5 @@ data class Email(
     val recipientAccount: String = "",
     val isRead: Boolean = false,
     val isToday: Boolean = true,
-    val priorityLevel: PriorityLevel = PriorityLevel.NONE
-)
+    val priorityLevel: PriorityLevel = PriorityLevel.NONE,
+    val timestamp: Long = 0L)

@@ -324,7 +324,7 @@ fun DashboardScreen(
         item {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Priority Emails",
+                text = "Priority Emails (Today)",
                 style = MaterialTheme.typography.titleLarge
             )
         }

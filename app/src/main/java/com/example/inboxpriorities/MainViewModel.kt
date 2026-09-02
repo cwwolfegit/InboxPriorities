@@ -246,9 +246,8 @@ class MainViewModel(
                                 "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
                             )
 
-                            // Fetch message payloads for evaluation
+                            // 1. Fetch a single list of recent emails (metadata format with timestamps)
                             val recentEmails = gmailRepo.fetchRecentEmails(maxResults = 50)
-                            val todayUnreadEmails = gmailRepo.fetchTodayUnreadEmails(maxResults = 50)
 
                             if (unreadResult.first == -1 || unreadToday == -1) {
                                 // Flag this account with an error instead of crashing the count labels
@@ -266,16 +265,32 @@ class MainViewModel(
                                     rule.targetAccountId == null || rule.targetAccountId == account.id
                                 }
 
-                                // 1. Total Priority Count
-                                val totalPriorityCount = recentEmails.count { email ->
-                                    val (level, _) = PriorityEvaluator.evaluatePriority(email.sender, email.subject, applicableRules)
-                                    level != PriorityLevel.NONE
+                                // 2. Determine "today" using timestamp boundaries (start of today in epoch millis)
+                                val calendar = java.util.Calendar.getInstance().apply {
+                                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                    set(java.util.Calendar.MINUTE, 0)
+                                    set(java.util.Calendar.SECOND, 0)
+                                    set(java.util.Calendar.MILLISECOND, 0)
                                 }
+                                val startOfTodayMillis = calendar.timeInMillis
 
-                                // 2. Today's Priority Count
-                                val todayPriorityCount = todayUnreadEmails.count { email ->
+                                var totalPriorityCount = 0
+                                var todayPriorityCount = 0
+                                val todayPriorityEmails = mutableListOf<Email>()
+
+                                // 3. Single loop to evaluate counts and today's priority items
+                                for (email in recentEmails) {
                                     val (level, _) = PriorityEvaluator.evaluatePriority(email.sender, email.subject, applicableRules)
-                                    level != PriorityLevel.NONE
+
+                                    if (level != PriorityLevel.NONE) {
+                                        totalPriorityCount++
+
+                                        // Check if email timestamp falls within today
+                                        if (email.timestamp >= startOfTodayMillis) {
+                                            todayPriorityCount++
+                                            todayPriorityEmails.add(email.copy(priorityLevel = level))
+                                        }
+                                    }
                                 }
 
                                 val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
