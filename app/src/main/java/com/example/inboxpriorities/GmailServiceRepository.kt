@@ -52,7 +52,7 @@ class GmailServiceRepository(
 
         try {
             val response = service.users().messages().list("me")
-                .setQ("label:INBOX")
+                .setQ("label:unread category:primary")
                 .setMaxResults(maxResults)
                 .execute()
 

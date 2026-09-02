@@ -247,8 +247,8 @@ class MainViewModel(
                             )
 
                             // Fetch message payloads for evaluation
-                            val recentEmails = gmailRepo.fetchRecentEmails(maxResults = 200)
-                            val todayUnreadEmails = gmailRepo.fetchTodayUnreadEmails(maxResults = 100)
+                            val recentEmails = gmailRepo.fetchRecentEmails(maxResults = 50)
+                            val todayUnreadEmails = gmailRepo.fetchTodayUnreadEmails(maxResults = 50)
 
                             if (unreadResult.first == -1 || unreadToday == -1) {
                                 // Flag this account with an error instead of crashing the count labels
