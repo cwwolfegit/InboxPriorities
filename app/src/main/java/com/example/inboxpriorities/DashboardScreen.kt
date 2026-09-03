@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 
+enum class EmailFilterTab { TODAY, TOTAL }
+
 @Composable
 fun DashboardScreen(
     viewModel: MainViewModel,
@@ -41,6 +43,16 @@ fun DashboardScreen(
     // Calculate aggregate top-level priority counts from the ViewModel maps
     val totalPriorityTodaySum = priorityTodayMap.values.sumOf { it.toIntOrNull() ?: 0 }
     val totalPriorityTotalSum = priorityUnreadMap.values.sumOf { it.toIntOrNull() ?: 0 }
+
+    val startOfTodayMillis = remember {
+        val calendar = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        calendar.timeInMillis
+    }
 
     // This will trigger whenever the accounts list changes (e.g., when Room finishes loading them)
     LaunchedEffect(key1 = accounts) {
@@ -326,7 +338,37 @@ fun DashboardScreen(
                             HorizontalDivider()
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            accountEmails.forEach { email ->
+                            // 1. Tab state & filtered list
+                            var selectedTab by remember { mutableStateOf(EmailFilterTab.TODAY) }
+                            val displayedEmails = remember(accountEmails, selectedTab) {
+                                when (selectedTab) {
+                                    EmailFilterTab.TODAY -> accountEmails.filter { it.timestamp >= startOfTodayMillis }
+                                    EmailFilterTab.TOTAL -> accountEmails
+                                }
+                            }
+
+                            // 2. Modern segmented button row
+                            SingleChoiceSegmentedButtonRow(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                            ) {
+                                SegmentedButton(
+                                    selected = selectedTab == EmailFilterTab.TODAY,
+                                    onClick = { selectedTab = EmailFilterTab.TODAY },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                                ) {
+                                    Text("Today")
+                                }
+                                SegmentedButton(
+                                    selected = selectedTab == EmailFilterTab.TOTAL,
+                                    onClick = { selectedTab = EmailFilterTab.TOTAL },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                ) {
+                                    Text("Total (${accountEmails.size})")
+                                }
+                            }
+
+                            // 3. Loop through filtered items
+                            displayedEmails.forEach { email ->
                                 EmailCard(email = email)
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
