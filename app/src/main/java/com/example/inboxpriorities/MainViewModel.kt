@@ -287,11 +287,11 @@ class MainViewModel(
 
                                     if (level != PriorityLevel.NONE) {
                                         totalPriorityCount++
+                                        accountPriorityEmails.add(email.copy(priorityLevel = level))
 
                                         // Check if email timestamp falls within today
                                         if (email.timestamp >= startOfTodayMillis) {
                                             todayPriorityCount++
-                                            accountPriorityEmails.add(email.copy(priorityLevel = level))
                                         }
                                     }
                                 }
@@ -312,7 +312,15 @@ class MainViewModel(
                                 }
                                 // Store this account's list if it has items
                                 if (accountPriorityEmails.isNotEmpty()) {
-                                    allAccountPriorityMap[account.emailAddress] = accountPriorityEmails
+                                    val sortedEmails = accountPriorityEmails.sortedBy { email ->
+                                        when (email.priorityLevel) {
+                                            PriorityLevel.HIGH -> 0
+                                            PriorityLevel.MEDIUM -> 1
+                                            PriorityLevel.LOW -> 2
+                                            PriorityLevel.NONE -> 3
+                                        }
+                                    }
+                                    allAccountPriorityMap[account.emailAddress] = sortedEmails
                                 }
                             }
                         } else {
