@@ -1,5 +1,7 @@
 package com.example.inboxpriorities
 
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -397,6 +399,12 @@ fun MetricCard(
 
 @Composable
 fun EmailCard(email: Email) {
+    val priorityColor = when (email.priorityLevel) {
+        PriorityLevel.HIGH -> Color(0xFFC62828)
+        PriorityLevel.MEDIUM -> Color(0xFFEF6C00)
+        PriorityLevel.LOW -> Color(0xFF1565C0)
+        PriorityLevel.NONE -> Color(0xFF616161)
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -414,7 +422,15 @@ fun EmailCard(email: Email) {
                     text = email.sender,
                     style = MaterialTheme.typography.titleMedium
                 )
-                PriorityBadge(priorityLevel = email.priorityLevel)
+                if (email.priorityLevel != PriorityLevel.NONE) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // Simple colored dot indicator
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(priorityColor, shape = androidx.compose.foundation.shape.CircleShape)
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
