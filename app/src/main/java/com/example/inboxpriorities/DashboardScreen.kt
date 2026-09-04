@@ -339,7 +339,26 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             // 1. Tab state & filtered list
-                            var selectedTab by remember { mutableStateOf(EmailFilterTab.TODAY) }
+                            val startOfTodayMillis = remember {
+                                val calendar = java.util.Calendar.getInstance().apply {
+                                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                    set(java.util.Calendar.MINUTE, 0)
+                                    set(java.util.Calendar.SECOND, 0)
+                                    set(java.util.Calendar.MILLISECOND, 0)
+                                }
+                                calendar.timeInMillis
+                            }
+
+                            var selectedTab by remember(accountEmails) {
+                                val todayCount = accountEmails.count { it.timestamp >= startOfTodayMillis }
+                                val initialTab = if (todayCount == 0 && accountEmails.isNotEmpty()) {
+                                    EmailFilterTab.TOTAL
+                                } else {
+                                    EmailFilterTab.TODAY
+                                }
+                                mutableStateOf(initialTab)
+                            }
+
                             val displayedEmails = remember(accountEmails, selectedTab) {
                                 when (selectedTab) {
                                     EmailFilterTab.TODAY -> accountEmails.filter { it.timestamp >= startOfTodayMillis }
