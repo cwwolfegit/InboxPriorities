@@ -15,6 +15,10 @@ import android.content.Context
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.Dispatchers
+
 class MainViewModel(
     application: Application,
     private val repository: RulesRepository
@@ -219,118 +223,146 @@ class MainViewModel(
                     "Active tokens currently cached: ${activeGoogleTokens.keys}"
                 )
 
-                val allAccountPriorityMap = mutableMapOf<String, List<Email>>()
-
-                for (account in accounts.value) {
-                    android.util.Log.d(
-                        "Debug_MainViewModel",
-                        "Checking account: ${account.emailAddress}"
-                    )
-
-                    if (account.provider == AccountProvider.GMAIL) {
-                        val token = activeGoogleTokens[account.emailAddress]
+                // 1. Launch all account fetches concurrently using async / awaitAll
+                val deferredResults = accounts.value.map { account ->
+                    async(Dispatchers.IO) {
                         android.util.Log.d(
                             "Debug_MainViewModel",
-                            "Token lookup for '${account.emailAddress}': found = ${!token.isNullOrBlank()}"
+                            "Checking account: ${account.emailAddress}"
                         )
 
-                        if (!token.isNullOrBlank()) {
-                            val gmailRepo = GmailServiceRepository(
-                                context = context,
-                                emailAddress = account.emailAddress,
-                                tokenProvider = { activeGoogleTokens[account.emailAddress] }
-                            )
-
-                            val unreadResult = gmailRepo.getUnreadInboxCount()
-                            val unreadToday = gmailRepo.getUnreadTodayCount()
-
+                        if (account.provider == AccountProvider.GMAIL) {
+                            val token = activeGoogleTokens[account.emailAddress]
                             android.util.Log.d(
                                 "Debug_MainViewModel",
-                                "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
+                                "Token lookup for '${account.emailAddress}': found = ${!token.isNullOrBlank()}"
                             )
 
-                            // 1. Fetch a single list of recent emails (metadata format with timestamps)
-                            val recentEmails = gmailRepo.fetchRecentEmails(maxResults = 50)
+                            if (!token.isNullOrBlank()) {
+                                val gmailRepo = GmailServiceRepository(
+                                    context = context,
+                                    emailAddress = account.emailAddress,
+                                    tokenProvider = { activeGoogleTokens[account.emailAddress] }
+                                )
 
-                            if (unreadResult.first == -1 || unreadToday == -1) {
-                                // Flag this account with an error instead of crashing the count labels
-                                _accountErrors.value = _accountErrors.value.toMutableMap().apply {
-                                    put(account.emailAddress, "Sign-in Expired")
+                                val unreadResult = gmailRepo.getUnreadInboxCount()
+                                val unreadToday = gmailRepo.getUnreadTodayCount()
+
+                                android.util.Log.d(
+                                    "Debug_MainViewModel",
+                                    "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
+                                )
+
+                                // Fetch recent emails
+                                val recentEmails = gmailRepo.fetchRecentEmails(maxResults = 50)
+
+                                if (unreadResult.first == -1 || unreadToday == -1) {
+                                    AccountFetchResult(
+                                        emailAddress = account.emailAddress,
+                                        error = "Sign-in Expired",
+                                        formattedCount = null,
+                                        unreadTodayStr = null,
+                                        totalPriorityStr = null,
+                                        todayPriorityStr = null,
+                                        sortedEmails = emptyList()
+                                    )
+                                } else {
+                                    val applicableRules = rules.value.filter { rule ->
+                                        rule.targetAccountId == null || rule.targetAccountId == account.id
+                                    }
+
+                                    val calendar = java.util.Calendar.getInstance().apply {
+                                        set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                        set(java.util.Calendar.MINUTE, 0)
+                                        set(java.util.Calendar.SECOND, 0)
+                                        set(java.util.Calendar.MILLISECOND, 0)
+                                    }
+                                    val startOfTodayMillis = calendar.timeInMillis
+
+                                    var totalPriorityCount = 0
+                                    var todayPriorityCount = 0
+                                    val accountPriorityEmails = mutableListOf<Email>()
+
+                                    for (email in recentEmails) {
+                                        val (level, _) = PriorityEvaluator.evaluatePriority(email.sender, email.subject, applicableRules)
+
+                                        if (level != PriorityLevel.NONE) {
+                                            totalPriorityCount++
+                                            accountPriorityEmails.add(email.copy(priorityLevel = level))
+
+                                            if (email.timestamp >= startOfTodayMillis) {
+                                                todayPriorityCount++
+                                            }
+                                        }
+                                    }
+
+                                    val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
+                                    val sortedEmails = if (accountPriorityEmails.isNotEmpty()) {
+                                        accountPriorityEmails.sortedBy { email ->
+                                            when (email.priorityLevel) {
+                                                PriorityLevel.HIGH -> 0
+                                                PriorityLevel.MEDIUM -> 1
+                                                PriorityLevel.LOW -> 2
+                                                PriorityLevel.NONE -> 3
+                                            }
+                                        }
+                                    } else emptyList()
+
+                                    AccountFetchResult(
+                                        emailAddress = account.emailAddress,
+                                        error = null,
+                                        formattedCount = formattedCount,
+                                        unreadTodayStr = unreadToday.toString(),
+                                        totalPriorityStr = totalPriorityCount.toString(),
+                                        todayPriorityStr = todayPriorityCount.toString(),
+                                        sortedEmails = sortedEmails
+                                    )
                                 }
                             } else {
-                                // Clear any previous error and update with clean numbers
-                                _accountErrors.value = _accountErrors.value.toMutableMap().apply {
-                                    remove(account.emailAddress)
-                                }
-
-                                // Filter rules applicable to this account or globally
-                                val applicableRules = rules.value.filter { rule ->
-                                    rule.targetAccountId == null || rule.targetAccountId == account.id
-                                }
-
-                                // 2. Determine "today" using timestamp boundaries (start of today in epoch millis)
-                                val calendar = java.util.Calendar.getInstance().apply {
-                                    set(java.util.Calendar.HOUR_OF_DAY, 0)
-                                    set(java.util.Calendar.MINUTE, 0)
-                                    set(java.util.Calendar.SECOND, 0)
-                                    set(java.util.Calendar.MILLISECOND, 0)
-                                }
-                                val startOfTodayMillis = calendar.timeInMillis
-
-                                var totalPriorityCount = 0
-                                var todayPriorityCount = 0
-                                val accountPriorityEmails = mutableListOf<Email>()
-
-                                // 3. Single loop to evaluate counts and today's priority items
-                                for (email in recentEmails) {
-                                    val (level, _) = PriorityEvaluator.evaluatePriority(email.sender, email.subject, applicableRules)
-
-                                    if (level != PriorityLevel.NONE) {
-                                        totalPriorityCount++
-                                        accountPriorityEmails.add(email.copy(priorityLevel = level))
-
-                                        // Check if email timestamp falls within today
-                                        if (email.timestamp >= startOfTodayMillis) {
-                                            todayPriorityCount++
-                                        }
-                                    }
-                                }
-
-                                val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
-
-                                _unreadCounts.value = _unreadCounts.value.toMutableMap().apply {
-                                    put(account.emailAddress, formattedCount)
-                                }
-                                _unreadTodayCounts.value = _unreadTodayCounts.value.toMutableMap().apply {
-                                    put(account.emailAddress, unreadToday.toString())
-                                }
-                                _priorityUnreadCounts.value = _priorityUnreadCounts.value.toMutableMap().apply {
-                                    put(account.emailAddress, totalPriorityCount.toString())
-                                }
-                                _priorityTodayCounts.value = _priorityTodayCounts.value.toMutableMap().apply {
-                                    put(account.emailAddress, todayPriorityCount.toString())
-                                }
-                                // Store this account's list if it has items
-                                if (accountPriorityEmails.isNotEmpty()) {
-                                    val sortedEmails = accountPriorityEmails.sortedBy { email ->
-                                        when (email.priorityLevel) {
-                                            PriorityLevel.HIGH -> 0
-                                            PriorityLevel.MEDIUM -> 1
-                                            PriorityLevel.LOW -> 2
-                                            PriorityLevel.NONE -> 3
-                                        }
-                                    }
-                                    allAccountPriorityMap[account.emailAddress] = sortedEmails
-                                }
+                                android.util.Log.d(
+                                    "Debug_MainViewModel",
+                                    "SKIPPED API call for ${account.emailAddress}: No cached token available at startup."
+                                )
+                                null
                             }
                         } else {
-                            android.util.Log.d(
-                                "Debug_MainViewModel",
-                                "SKIPPED API call for ${account.emailAddress}: No cached token available at startup."
-                            )
+                            null
                         }
                     }
                 }
+
+                // 2. Await all background jobs concurrently
+                val results = deferredResults.awaitAll()
+
+                // 3. Aggregate results and update StateFlows safely
+                val newErrors = _accountErrors.value.toMutableMap()
+                val newUnread = _unreadCounts.value.toMutableMap()
+                val newUnreadToday = _unreadTodayCounts.value.toMutableMap()
+                val newPriorityUnread = _priorityUnreadCounts.value.toMutableMap()
+                val newPriorityToday = _priorityTodayCounts.value.toMutableMap()
+                val allAccountPriorityMap = mutableMapOf<String, List<Email>>()
+
+                for (res in results) {
+                    if (res == null) continue
+                    if (res.error != null) {
+                        newErrors[res.emailAddress] = res.error
+                    } else {
+                        newErrors.remove(res.emailAddress)
+                        if (res.formattedCount != null) newUnread[res.emailAddress] = res.formattedCount
+                        if (res.unreadTodayStr != null) newUnreadToday[res.emailAddress] = res.unreadTodayStr
+                        if (res.totalPriorityStr != null) newPriorityUnread[res.emailAddress] = res.totalPriorityStr
+                        if (res.todayPriorityStr != null) newPriorityToday[res.emailAddress] = res.todayPriorityStr
+                        if (res.sortedEmails.isNotEmpty()) {
+                            allAccountPriorityMap[res.emailAddress] = res.sortedEmails
+                        }
+                    }
+                }
+
+                _accountErrors.value = newErrors
+                _unreadCounts.value = newUnread
+                _unreadTodayCounts.value = newUnreadToday
+                _priorityUnreadCounts.value = newPriorityUnread
+                _priorityTodayCounts.value = newPriorityToday
                 _todayPriorityEmailsByAccount.value = allAccountPriorityMap
 
             } finally {
@@ -340,6 +372,16 @@ class MainViewModel(
         }
     }
 
+    // Helper data class for thread-safe result collection
+    private data class AccountFetchResult(
+        val emailAddress: String,
+        val error: String?,
+        val formattedCount: String?,
+        val unreadTodayStr: String?,
+        val totalPriorityStr: String?,
+        val todayPriorityStr: String?,
+        val sortedEmails: List<Email>
+    )
     // Cache map for GoogleSignInAccount objects
     private val activeGoogleAccounts = mutableMapOf<String, GoogleSignInAccount>()
 
