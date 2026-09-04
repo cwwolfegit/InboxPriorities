@@ -36,20 +36,21 @@ fun AddEditAccountDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Email Field
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email Address") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
 
                 // Nickname Field
                 OutlinedTextField(
                     value = nickname,
                     onValueChange = { nickname = it },
                     label = { Text("Nickname (Optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Email Field
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email Address") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

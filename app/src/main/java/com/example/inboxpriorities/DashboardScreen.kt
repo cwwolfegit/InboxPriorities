@@ -103,7 +103,7 @@ fun DashboardScreen(
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
+            /*Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -124,7 +124,7 @@ fun DashboardScreen(
                     subValue = "$totalPriorityTotalSum total",
                     modifier = Modifier.weight(1f)
                 )
-            }
+            }*/
         }
 
         // --- 2. ACCOUNTS BREAKDOWN & INLINE ACCORDIONS ---
