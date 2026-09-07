@@ -105,7 +105,7 @@ class GmailServiceRepository(
         return@withContext emailList
     }
 
-    suspend fun getUnreadInboxCount(): Pair<Int, Boolean> = withContext(Dispatchers.IO) {
+    override suspend fun getUnreadInboxCount(): Pair<Int, Boolean> = withContext(Dispatchers.IO) {
         Log.d(TAG, "getUnreadInboxCount called for $emailAddress")
         val service = getGmailService() ?: return@withContext Pair(0, false)
 
@@ -149,7 +149,7 @@ class GmailServiceRepository(
         }
     }
 
-    suspend fun getUnreadTodayCount(): Int = withContext(Dispatchers.IO) {
+    override suspend fun getUnreadTodayCount(): Int = withContext(Dispatchers.IO) {
         Log.d(TAG, "getUnreadTodayCount called for $emailAddress")
         val service = getGmailService() ?: return@withContext 0
 

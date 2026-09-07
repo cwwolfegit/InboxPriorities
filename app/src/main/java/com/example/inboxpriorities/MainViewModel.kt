@@ -27,8 +27,8 @@ class MainViewModel(
     private val prefs = application.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
     // In-memory cache mapping email addresses to their active Google ID tokens
     private val activeGoogleTokens = mutableMapOf<String, String>()
-    private val activeOutlookTokens = mutableMapOf<String, String>()
-
+    private val activeOutlookTokens = mutableMapOf<String, String>().apply {
+        put("InboxPriorities@outlook.com", "EwBoBMl6BAAUCBUz0PacyGyQMzAdZCXlnFTa1qQAAd3a83noczaHmVgvTj2hDyLTHJIanfvQiEBZkFrr/0O03nIegEGatepJKiz71u+Wknq5oqgmDDysaF2HI/FAdSIX1kuGAlwzyWqBXflmjjCAtjJQi10i84BoD7nMV/lVSlG6ILdkAtMlRMO0v6TIFKIrIa1pVCHBc65ukiX6z5QU205nArNEbtTG2tzg0buKX7W3fWwmVL6SO67B875En2+EDpOiUzgxvpIPgthM40+vfW2DnnCaFBFFwQKvKQSEu5aRN9RIzlUVVy0g5+8VsLbVRkNqL8P4Z6LVlxXzrtFdMvODNfEP2DcQfS9OOyp87Yj+lIaHFbkbLyc+ofqomHUQZgAAEC+3Y2w+rJhNX3VM4WC0GaAwAw8nves5tfi5leNZPWQQCoEomDntAdzcTRsp18Frq2bxg0HTvsshU7/8vgLhSmADAnhH1P1EWSjrKmDmjW4/aD6BZ4MECN7vVyhn0hizSRn8wCfa8qAOujj2cGZ6QQLWGXaqhrDZQxQ3pxsJf+6GpbeyS9NAtFD+cccB5jpNAmzbYBnZXnVsamlAQbf6MbjySw8akHToifwwZj7WOqSNSeNABkBB58OCROswGDKK8Txfd/FKtJfo33zQWyuU6Bk17kclegpKjZ5GURSNFdx6v+dlxeVZwbPxvlWwKJ0THf6t3u0vB5ffF3LQEKXIx0GrQjqYfK3O9stwuYcSpnxt7K8JAcSu09witekVJDICF0pOZiTNFKKYY8DX6Uo6d19ExoY9HLuHqWlgioRjDVBIV9iHY3Y+/MvZcacxR94ijk1roqTmnKo+daPFKJPG3PZ3ZLz081H6g1GXWZRqhoghvKeA8aIsT4dkpEyehSQS+/p0D3lUFWgF3MVW4/iJ+QudDRrf0ICcHG2ZhVpTjuoYkiCiybjUOxgIICeweRKQwM9tfUHp1LV72mwmH/N8WU4pkwe4n6x15OKf68hJynXjYbo+VBnXm+lH2FZ5+mJb4S2wBsDo95hnLi7IMBaZUJp9iDQEtU9l2lFBnpSs4yLyxYYW/kwl8jEjZvaC1RxkIbrO7v1vjv8mSn1ZuV/kaswbExtB3cGKaHEzQOtmsg85gNXpF9zOY6aAqdBJ7CqzqgvXzCpZ1jd+H4tWa9V+XXRSa7EerP0wsi62A60YRK6l0craJa8GrcvIbZKOIZwkgnPDRHh7FYdAGyZlkjNFSt0UCyp34k0eFqmIl4mvr3hdjMmG440YIqXh9pIds3wnhYuwyQ22c5yMvxPzAL3T7H2G7YvMqA9HnMatyF4GYt0aMB90a/RTstZTrXYCJKoapgCoTA18Xt/jZGM+TdiJ2vl3aPnfFgIbLjlFtYghj8jL3u+Yf5kBfVksUWJTv2i0aT5Qw24zGOTtb7CMeI5d4irS+fGXDOlbdTGoGB4omH4vwNPE1v0nmH11MeN9ur5ieD9PUM/kOnHvH3JDNR8vVva+2m4D")}
     init {
         // Automatically restore saved tokens from storage on startup
         prefs.all.forEach { (key, value) ->
@@ -254,8 +254,8 @@ class MainViewModel(
                                 )
                             }
 
-                            val unreadResult = (emailRepo as? GmailServiceRepository)?.getUnreadInboxCount() ?: Pair(0, false)
-                            val unreadToday = (emailRepo as? GmailServiceRepository)?.getUnreadTodayCount() ?: 0
+                            val unreadResult = emailRepo.getUnreadInboxCount()
+                            val unreadToday = emailRepo.getUnreadTodayCount()
 
                             android.util.Log.d(
                                 "Debug_MainViewModel",
@@ -277,6 +277,7 @@ class MainViewModel(
                                 )
                             } else {
                                 val applicableRules = rules.value.filter { rule ->
+                                    android.util.Log.d("Debug_MainViewModel", "Rule '${rule.name}' targetAccountId: ${rule.targetAccountId}, current account.id: ${account.id}")
                                     rule.targetAccountId == null || rule.targetAccountId == account.id
                                 }
 

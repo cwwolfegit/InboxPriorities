@@ -58,9 +58,23 @@ class OutlookEmailRepository(
                     // Microsoft Graph structures sender information under from -> emailAddress -> name/address
                     val fromObj = messageObj.getAsJsonObject("from")
                     val emailAddressObj = fromObj?.getAsJsonObject("emailAddress")
-                    val senderName = emailAddressObj?.get("name")?.asString
-                        ?: emailAddressObj?.get("address")?.asString
-                        ?: "Unknown Sender"
+                    val senderName = emailAddressObj?.get("name")?.asString ?: ""
+                    val senderAddress = emailAddressObj?.get("address")?.asString ?: ""
+
+                    Log.d(TAG, "FromObj: $fromObj.")
+                    Log.d(TAG, "emailAddressObj: $emailAddressObj.")
+                    Log.d(TAG, "SenderName: $senderName.")
+                    Log.d(TAG, "senderAddress: $senderAddress.")
+                    Log.d(TAG, "Subject: $subject.")
+
+                    // Format as "Name <email@domain.com>" or fallback to address so substring rules match correctly
+                    val sender = if (senderAddress.isNotEmpty()) {
+                        if (senderName.isNotEmpty()) "$senderName <$senderAddress>" else senderAddress
+                    } else {
+                        senderName.ifEmpty { "Unknown Sender" }
+                    }
+
+                    Log.d(TAG, "Final Sender: $sender.")
 
                     val receivedDateTime = messageObj.get("receivedDateTime")?.asString
                     val timestamp = parseIsoTimestamp(receivedDateTime)
@@ -68,7 +82,7 @@ class OutlookEmailRepository(
                     emailList.add(
                         Email(
                             id = id,
-                            sender = senderName,
+                            sender = sender,
                             subject = subject,
                             body = bodyPreview,
                             recipientAccount = emailAddress,
@@ -84,6 +98,71 @@ class OutlookEmailRepository(
         }
 
         return@withContext emailList
+    }
+
+    override suspend fun getUnreadInboxCount(): Pair<Int, Boolean> = withContext(Dispatchers.IO) {
+        val token = tokenProvider()
+        if (token.isNullOrEmpty()) return@withContext Pair(0, false)
+
+        try {
+            val url = "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?\$filter=isRead eq false&\$count=true&\$top=1"
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer $token")
+                .addHeader("ConsistencyLevel", "eventual")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext Pair(0, false)
+                val bodyString = response.body?.string() ?: return@withContext Pair(0, false)
+
+                val gson = GsonBuilder().create()
+                val jsonObject = gson.fromJson(bodyString, JsonObject::class.java)
+                val totalCount = if (jsonObject.has("@odata.count")) jsonObject.get("@odata.count").asInt else 0
+                val hasMore = jsonObject.has("@odata.nextLink")
+
+                Pair(totalCount, hasMore)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception in getUnreadInboxCount for $emailAddress: ${e.message}", e)
+            Pair(0, false)
+        }
+    }
+
+    override suspend fun getUnreadTodayCount(): Int = withContext(Dispatchers.IO) {
+        val token = tokenProvider()
+        if (token.isNullOrEmpty()) return@withContext 0
+
+        try {
+            val calendar = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            val isoToday = Instant.ofEpochMilli(calendar.timeInMillis).toString()
+
+            val url = "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?\$filter=isRead eq false and receivedDateTime ge $isoToday&\$count=true"
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer $token")
+                .addHeader("ConsistencyLevel", "eventual")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext 0
+                val bodyString = response.body?.string() ?: return@withContext 0
+
+                val gson = GsonBuilder().create()
+                val jsonObject = gson.fromJson(bodyString, JsonObject::class.java)
+                if (jsonObject.has("@odata.count")) jsonObject.get("@odata.count").asInt else 0
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception in getUnreadTodayCount for $emailAddress: ${e.message}", e)
+            0
+        }
     }
 
     private fun parseIsoTimestamp(isoStr: String?): Long {
