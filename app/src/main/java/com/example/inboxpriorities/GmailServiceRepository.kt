@@ -18,8 +18,11 @@ class GmailServiceRepository(
     private val context: Context,
     private val emailAddress: String,
     private val tokenProvider: suspend () -> String?
-) {
+) : EmailRepository {
 
+    override suspend fun fetchEmails(accountId: String): List<Email> {
+        return fetchRecentEmails(10)
+    }
     companion object {
         private const val TAG = "Debug_GmailRepo"
     }
