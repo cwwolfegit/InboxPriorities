@@ -458,14 +458,9 @@ fun MetricCard(
     }
 }
 
+
 @Composable
 fun EmailCard(email: Email) {
-    val priorityColor = when (email.priorityLevel) {
-        PriorityLevel.HIGH -> Color(0xFFC62828)
-        PriorityLevel.MEDIUM -> Color(0xFFEF6C00)
-        PriorityLevel.LOW -> Color(0xFF1565C0)
-        PriorityLevel.NONE -> Color(0xFF616161)
-    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -477,20 +472,17 @@ fun EmailCard(email: Email) {
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = email.sender,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f) // Ensures sender text wraps nicely if long
                 )
                 if (email.priorityLevel != PriorityLevel.NONE) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    // Simple colored dot indicator
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .background(priorityColor, shape = androidx.compose.foundation.shape.CircleShape)
-                    )
+                    PriorityBadge(priorityLevel = email.priorityLevel)
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
