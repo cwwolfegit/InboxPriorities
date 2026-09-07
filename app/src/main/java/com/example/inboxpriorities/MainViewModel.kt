@@ -239,14 +239,21 @@ class MainViewModel(
                             )
 
                             if (!token.isNullOrBlank()) {
-                                val gmailRepo = GmailServiceRepository(
-                                    context = context,
-                                    emailAddress = account.emailAddress,
-                                    tokenProvider = { activeGoogleTokens[account.emailAddress] }
-                                )
+                                val emailRepo: EmailRepository = when (account.provider) {
+                                    AccountProvider.OUTLOOK -> OutlookEmailRepository()
+                                    else -> GmailServiceRepository(
+                                        context = context,
+                                        emailAddress = account.emailAddress,
+                                        tokenProvider = { activeGoogleTokens[account.emailAddress] }
+                                    )
+                                }
 
-                                val unreadResult = gmailRepo.getUnreadInboxCount()
-                                val unreadToday = gmailRepo.getUnreadTodayCount()
+                                // Note: If Outlook doesn't use these specific unread count helpers yet,
+                                // you can handle them per provider or add them to the interface later.
+                                // For now, focusing on the core email fetch via the interface contract:
+
+                                val unreadResult = (emailRepo as? GmailServiceRepository)?.getUnreadInboxCount() ?: Pair(0, false)
+                                val unreadToday = (emailRepo as? GmailServiceRepository)?.getUnreadTodayCount() ?: 0
 
                                 android.util.Log.d(
                                     "Debug_MainViewModel",
@@ -254,7 +261,7 @@ class MainViewModel(
                                 )
 
                                 // Fetch recent emails
-                                val recentEmails = gmailRepo.fetchRecentEmails(maxResults = 50)
+                                val recentEmails = emailRepo.fetchEmails(account.id)
 
                                 if (unreadResult.first == -1 || unreadToday == -1) {
                                     AccountFetchResult(
