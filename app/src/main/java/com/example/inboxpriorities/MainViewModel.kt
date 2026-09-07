@@ -27,6 +27,7 @@ class MainViewModel(
     private val prefs = application.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
     // In-memory cache mapping email addresses to their active Google ID tokens
     private val activeGoogleTokens = mutableMapOf<String, String>()
+    private val activeOutlookTokens = mutableMapOf<String, String>()
 
     init {
         // Automatically restore saved tokens from storage on startup
@@ -230,109 +231,107 @@ class MainViewModel(
                             "Debug_MainViewModel",
                             "Checking account: ${account.emailAddress}"
                         )
+                        val token = when (account.provider) {
+                            AccountProvider.OUTLOOK -> activeOutlookTokens[account.emailAddress]
+                            else -> activeGoogleTokens[account.emailAddress]
+                        }
 
-                        if (account.provider == AccountProvider.GMAIL) {
-                            val token = activeGoogleTokens[account.emailAddress]
+                        android.util.Log.d(
+                            "Debug_MainViewModel",
+                            "Token lookup for '${account.emailAddress}' (${account.provider}): found = ${!token.isNullOrBlank()}"
+                        )
+
+                        if (!token.isNullOrBlank()) {
+                            val emailRepo: EmailRepository = when (account.provider) {
+                                AccountProvider.OUTLOOK -> OutlookEmailRepository(
+                                    emailAddress = account.emailAddress,
+                                    tokenProvider = { token!! }
+                                )
+                                else -> GmailServiceRepository(
+                                    context = context,
+                                    emailAddress = account.emailAddress,
+                                    tokenProvider = { token!! }
+                                )
+                            }
+
+                            val unreadResult = (emailRepo as? GmailServiceRepository)?.getUnreadInboxCount() ?: Pair(0, false)
+                            val unreadToday = (emailRepo as? GmailServiceRepository)?.getUnreadTodayCount() ?: 0
+
                             android.util.Log.d(
                                 "Debug_MainViewModel",
-                                "Token lookup for '${account.emailAddress}': found = ${!token.isNullOrBlank()}"
+                                "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
                             )
 
-                            if (!token.isNullOrBlank()) {
-                                val emailRepo: EmailRepository = when (account.provider) {
-                                    AccountProvider.OUTLOOK -> OutlookEmailRepository()
-                                    else -> GmailServiceRepository(
-                                        context = context,
-                                        emailAddress = account.emailAddress,
-                                        tokenProvider = { activeGoogleTokens[account.emailAddress] }
-                                    )
-                                }
+                            // Fetch recent emails
+                            val recentEmails = emailRepo.fetchEmails(account.id)
 
-                                // Note: If Outlook doesn't use these specific unread count helpers yet,
-                                // you can handle them per provider or add them to the interface later.
-                                // For now, focusing on the core email fetch via the interface contract:
-
-                                val unreadResult = (emailRepo as? GmailServiceRepository)?.getUnreadInboxCount() ?: Pair(0, false)
-                                val unreadToday = (emailRepo as? GmailServiceRepository)?.getUnreadTodayCount() ?: 0
-
-                                android.util.Log.d(
-                                    "Debug_MainViewModel",
-                                    "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
+                            if (unreadResult.first == -1 || unreadToday == -1) {
+                                AccountFetchResult(
+                                    emailAddress = account.emailAddress,
+                                    error = "Sign-in Expired",
+                                    formattedCount = null,
+                                    unreadTodayStr = null,
+                                    totalPriorityStr = null,
+                                    todayPriorityStr = null,
+                                    sortedEmails = emptyList()
                                 )
-
-                                // Fetch recent emails
-                                val recentEmails = emailRepo.fetchEmails(account.id)
-
-                                if (unreadResult.first == -1 || unreadToday == -1) {
-                                    AccountFetchResult(
-                                        emailAddress = account.emailAddress,
-                                        error = "Sign-in Expired",
-                                        formattedCount = null,
-                                        unreadTodayStr = null,
-                                        totalPriorityStr = null,
-                                        todayPriorityStr = null,
-                                        sortedEmails = emptyList()
-                                    )
-                                } else {
-                                    val applicableRules = rules.value.filter { rule ->
-                                        rule.targetAccountId == null || rule.targetAccountId == account.id
-                                    }
-
-                                    val calendar = java.util.Calendar.getInstance().apply {
-                                        set(java.util.Calendar.HOUR_OF_DAY, 0)
-                                        set(java.util.Calendar.MINUTE, 0)
-                                        set(java.util.Calendar.SECOND, 0)
-                                        set(java.util.Calendar.MILLISECOND, 0)
-                                    }
-                                    val startOfTodayMillis = calendar.timeInMillis
-
-                                    var totalPriorityCount = 0
-                                    var todayPriorityCount = 0
-                                    val accountPriorityEmails = mutableListOf<Email>()
-
-                                    for (email in recentEmails) {
-                                        val (level, _) = PriorityEvaluator.evaluatePriority(email.sender, email.subject, applicableRules)
-
-                                        if (level != PriorityLevel.NONE) {
-                                            totalPriorityCount++
-                                            accountPriorityEmails.add(email.copy(priorityLevel = level))
-
-                                            if (email.timestamp >= startOfTodayMillis) {
-                                                todayPriorityCount++
-                                            }
-                                        }
-                                    }
-
-                                    val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
-                                    val sortedEmails = if (accountPriorityEmails.isNotEmpty()) {
-                                        accountPriorityEmails.sortedBy { email ->
-                                            when (email.priorityLevel) {
-                                                PriorityLevel.HIGH -> 0
-                                                PriorityLevel.MEDIUM -> 1
-                                                PriorityLevel.LOW -> 2
-                                                PriorityLevel.NONE -> 3
-                                            }
-                                        }
-                                    } else emptyList()
-
-                                    AccountFetchResult(
-                                        emailAddress = account.emailAddress,
-                                        error = null,
-                                        formattedCount = formattedCount,
-                                        unreadTodayStr = unreadToday.toString(),
-                                        totalPriorityStr = totalPriorityCount.toString(),
-                                        todayPriorityStr = todayPriorityCount.toString(),
-                                        sortedEmails = sortedEmails
-                                    )
-                                }
                             } else {
-                                android.util.Log.d(
-                                    "Debug_MainViewModel",
-                                    "SKIPPED API call for ${account.emailAddress}: No cached token available at startup."
+                                val applicableRules = rules.value.filter { rule ->
+                                    rule.targetAccountId == null || rule.targetAccountId == account.id
+                                }
+
+                                val calendar = java.util.Calendar.getInstance().apply {
+                                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                    set(java.util.Calendar.MINUTE, 0)
+                                    set(java.util.Calendar.SECOND, 0)
+                                    set(java.util.Calendar.MILLISECOND, 0)
+                                }
+                                val startOfTodayMillis = calendar.timeInMillis
+
+                                var totalPriorityCount = 0
+                                var todayPriorityCount = 0
+                                val accountPriorityEmails = mutableListOf<Email>()
+
+                                for (email in recentEmails) {
+                                    val (level, _) = PriorityEvaluator.evaluatePriority(email.sender, email.subject, applicableRules)
+
+                                    if (level != PriorityLevel.NONE) {
+                                        totalPriorityCount++
+                                        accountPriorityEmails.add(email.copy(priorityLevel = level))
+
+                                        if (email.timestamp >= startOfTodayMillis) {
+                                            todayPriorityCount++
+                                        }
+                                    }
+                                }
+
+                                val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
+                                val sortedEmails = if (accountPriorityEmails.isNotEmpty()) {
+                                    accountPriorityEmails.sortedBy { email ->
+                                        when (email.priorityLevel) {
+                                            PriorityLevel.HIGH -> 0
+                                            PriorityLevel.MEDIUM -> 1
+                                            PriorityLevel.LOW -> 2
+                                            PriorityLevel.NONE -> 3
+                                        }
+                                    }
+                                } else emptyList()
+
+                                AccountFetchResult(
+                                    emailAddress = account.emailAddress,
+                                    error = null,
+                                    formattedCount = formattedCount,
+                                    unreadTodayStr = unreadToday.toString(),
+                                    totalPriorityStr = totalPriorityCount.toString(),
+                                    todayPriorityStr = todayPriorityCount.toString(),
+                                    sortedEmails = sortedEmails
                                 )
-                                null
                             }
                         } else {
+                            android.util.Log.d(
+                                "Debug_MainViewModel",
+                                "SKIPPED API call for ${account.emailAddress}: No cached token available at startup."
+                            )
                             null
                         }
                     }

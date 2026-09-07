@@ -87,4 +87,6 @@ dependencies {
 
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
 }
