@@ -20,6 +20,9 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import com.example.inboxpriorities.diagnostics.GmailDiagnostic
 
+import android.content.Intent
+import android.net.Uri
+
 enum class AppTab {
     DASHBOARD,
     ACCOUNTS,
@@ -151,6 +154,19 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+
+        val uri = intent.data
+        if (uri != null && uri.scheme == "inboxpriorities" && uri.host == "oauth2redirect") {
+            val code = uri.getQueryParameter("code")
+            if (code != null) {
+                // TODO: Pass this authorization code to your token exchange logic
             }
         }
     }

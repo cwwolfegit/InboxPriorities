@@ -230,18 +230,22 @@ fun DashboardScreen(
                                             .fillMaxWidth()
                                             .padding(top = 8.dp)
                                             .clickable {
-                                                val authRequest = googleAuthHelper.createAuthorizationRequest(account.emailAddress)
-
-                                                googleAuthHelper.authClient.authorize(authRequest)
-                                                    .addOnSuccessListener { authorizationResult ->
-                                                        if (authorizationResult.accessToken != null) {
-                                                            val newToken = authorizationResult.accessToken!!
-                                                            viewModel.retryAccountAuth(account.emailAddress, newToken, context)
+                                                if (account.provider == AccountProvider.OUTLOOK) {
+                                                    // TODO: Launch Microsoft/Outlook auth flow,
+                                                    // then call viewModel.retryAccountAuth(account.emailAddress, newToken, context)
+                                                } else {
+                                                    val authRequest = googleAuthHelper.createAuthorizationRequest(account.emailAddress)
+                                                    googleAuthHelper.authClient.authorize(authRequest)
+                                                        .addOnSuccessListener { authorizationResult ->
+                                                            if (authorizationResult.accessToken != null) {
+                                                                val newToken = authorizationResult.accessToken!!
+                                                                viewModel.retryAccountAuth(account.emailAddress, newToken, context)
+                                                            }
                                                         }
-                                                    }
-                                                    .addOnFailureListener { e ->
-                                                        android.util.Log.e("Debug_Dashboard", "Failed to re-authorize account: ${account.emailAddress}", e)
-                                                    }
+                                                        .addOnFailureListener { e ->
+                                                            android.util.Log.e("Debug_Dashboard", "Failed to re-authorize Google account: ${account.emailAddress}", e)
+                                                        }
+                                                }
                                             }
                                     ) {
                                         Row(
