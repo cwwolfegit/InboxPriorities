@@ -89,4 +89,6 @@ dependencies {
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    implementation("androidx.browser:browser:1.8.0")
+
 }
