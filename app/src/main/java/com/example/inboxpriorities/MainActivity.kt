@@ -56,6 +56,10 @@ class MainActivity : ComponentActivity() {
         //}
         // -------------------------------------
 
+        // Intercept redirect if app was launched via the OAuth intent
+        handleOAuthRedirect(intent)
+
+
         setContent {
             InboxPrioritiesTheme {
                 var selectedTab by rememberSaveable { mutableStateOf(AppTab.DASHBOARD) }
@@ -68,10 +72,8 @@ class MainActivity : ComponentActivity() {
                 // Automatically triggers once accounts are loaded from disk storage on startup
                 val accountList by viewModel.accounts.collectAsState()
 
-                LaunchedEffect(accountList) {
-                    if (accountList.isNotEmpty()) {
-                        viewModel.loadAllDefinedAccounts(context = this@MainActivity)
-                    }
+                LaunchedEffect(Unit) {
+                    viewModel.loadAllDefinedAccounts(context = this@MainActivity)
                 }
 
                 Scaffold(
@@ -161,12 +163,19 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-
+        handleOAuthRedirect(intent)
+    }
+    private fun handleOAuthRedirect(intent: Intent) {
         val uri = intent.data
         if (uri != null && uri.scheme == "inboxpriorities" && uri.host == "oauth2redirect") {
-            val code = uri.getQueryParameter("code")
-            if (code != null) {
-                // TODO: Pass this authorization code to your token exchange logic
+            val authorizationCode = uri.getQueryParameter("code")
+            val error = uri.getQueryParameter("error")
+
+            if (!authorizationCode.isNullOrEmpty()) {
+                intent.data = null
+                viewModel.exchangeCodeForToken(authorizationCode)
+            } else if (!error.isNullOrEmpty()) {
+                android.util.Log.e("OAuth", "Authorization failed: $error")
             }
         }
     }

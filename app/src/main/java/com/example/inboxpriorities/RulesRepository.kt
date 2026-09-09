@@ -115,4 +115,62 @@ class RulesRepository(private val context: Context) {
             )
         )
     }
-}
+    suspend fun exchangeAuthorizationCode(authorizationCode: String): Boolean {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val url = java.net.URL("https://login.microsoftonline.com/common/oauth2/v2.0/token")
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.doOutput = true
+                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+
+                // Build form parameters
+                val postData = buildString {
+                    append("client_id=6c306dd0-6ac1-4811-8af8-578861b2c5bb")
+                    append("&scope=https://graph.microsoft.com/Mail.Read offline_access")
+                    append("&code=$authorizationCode")
+                    append("&redirect_uri=inboxpriorities://oauth2redirect")
+                    append("&grant_type=authorization_code")
+
+                    // Retrieve the code_verifier stored during the login request setup:
+                    val codeVerifier = context.getSharedPreferences("AuthPrefs", android.content.Context.MODE_PRIVATE)
+                        .getString("code_verifier", "")
+                    if (!codeVerifier.isNullOrEmpty()) {
+                        append("&code_verifier=$codeVerifier")
+                    }
+                }
+
+                connection.outputStream.use { os ->
+                    os.write(postData.toByteArray(Charsets.UTF_8))
+                }
+
+                val responseCode = connection.responseCode
+                if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                    val responseString = connection.inputStream.bufferedReader().use { it.readText() }
+
+                    // Parse JSON response and save tokens to AuthPrefs
+                    val jsonResponse = org.json.JSONObject(responseString)
+                    val accessToken = jsonResponse.getString("access_token")
+                    val refreshToken = jsonResponse.optString("refresh_token")
+
+                    val prefs = context.getSharedPreferences("AuthPrefs", android.content.Context.MODE_PRIVATE)
+                    prefs.edit().apply {
+                        putString("microsoft_access_token", accessToken)
+                        if (!refreshToken.isNullOrEmpty()) {
+                            putString("microsoft_refresh_token", refreshToken)
+                        }
+                        apply()
+                    }
+
+                    true
+                } else {
+                    val errorStream = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                    android.util.Log.e("Repository", "Token exchange failed with code $responseCode: $errorStream")
+                    false
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("Repository", "Exception during token exchange request", e)
+                false
+            }
+        }
+    }}

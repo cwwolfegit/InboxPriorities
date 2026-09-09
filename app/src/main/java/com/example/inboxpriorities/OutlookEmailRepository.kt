@@ -41,7 +41,7 @@ class OutlookEmailRepository(
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     Log.e(TAG, "Microsoft Graph API error: ${response.code} - ${response.message} for $emailAddress")
-                    return@withContext emptyList()
+                    throw java.io.IOException("Unauthorized or API Error: ${response.code}")
                 }
 
                 val responseBody = response.body?.string() ?: return@withContext emptyList()
@@ -114,7 +114,7 @@ class OutlookEmailRepository(
                 .build()
 
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext Pair(0, false)
+                if (!response.isSuccessful) return@withContext Pair(-1, false)
                 val bodyString = response.body?.string() ?: return@withContext Pair(0, false)
 
                 val gson = GsonBuilder().create()
@@ -153,7 +153,7 @@ class OutlookEmailRepository(
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext 0
-                val bodyString = response.body?.string() ?: return@withContext 0
+                val bodyString = response.body?.string() ?: return@withContext -1
 
                 val gson = GsonBuilder().create()
                 val jsonObject = gson.fromJson(bodyString, JsonObject::class.java)

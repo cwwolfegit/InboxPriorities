@@ -49,14 +49,18 @@ object MicrosoftAuthHelper {
     // Convenience method to initiate the Chrome Custom Tabs login flow
     fun startLogin(context: Context) {
         val verifier = generateCodeVerifier()
-        val challenge = generateCodeChallenge(verifier)
-        val authUrlString = createAuthorizationUrl(challenge)
+        val challenge = generateCodeChallenge(codeVerifier = verifier)
+
+        // Save the verifier so the repository can retrieve it during token exchange
+        val prefs = context.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
+        prefs.edit().putString("code_verifier", verifier).apply()
+
+        val authUrlString = createAuthorizationUrl(codeChallenge = challenge)
 
         val uri = Uri.parse(authUrlString)
         val customTabsIntent = CustomTabsIntent.Builder().build()
         customTabsIntent.launchUrl(context, uri)
     }
-
     // Retrieve the active verifier needed during the token exchange step
     fun getSavedVerifier(): String? = currentCodeVerifier
 }

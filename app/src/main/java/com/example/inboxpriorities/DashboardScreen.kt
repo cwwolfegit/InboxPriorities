@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.platform.LocalContext
 
 enum class EmailFilterTab { TODAY, TOTAL }
 
@@ -231,8 +232,7 @@ fun DashboardScreen(
                                             .padding(top = 8.dp)
                                             .clickable {
                                                 if (account.provider == AccountProvider.OUTLOOK) {
-                                                    // TODO: Launch Microsoft/Outlook auth flow,
-                                                    // then call viewModel.retryAccountAuth(account.emailAddress, newToken, context)
+                                                    MicrosoftAuthHelper.startLogin(context)
                                                 } else {
                                                     val authRequest = googleAuthHelper.createAuthorizationRequest(account.emailAddress)
                                                     googleAuthHelper.authClient.authorize(authRequest)

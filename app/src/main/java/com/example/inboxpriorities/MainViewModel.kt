@@ -230,6 +230,9 @@ class MainViewModel(
                     "Active tokens currently cached: ${activeGoogleTokens.keys}"
                 )
 
+                // Initialize SharedPreferences reference for AuthPrefs lookup
+                val prefs = context.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
+
                 // 1. Launch all account fetches concurrently using async / awaitAll
                 val deferredResults = accounts.value.map { account ->
                     async(Dispatchers.IO) {
@@ -238,7 +241,7 @@ class MainViewModel(
                             "Checking account: ${account.emailAddress}"
                         )
                         val token = when (account.provider) {
-                            AccountProvider.OUTLOOK -> activeOutlookTokens[account.emailAddress]
+                            AccountProvider.OUTLOOK -> prefs.getString("microsoft_access_token", null)
                             else -> activeGoogleTokens[account.emailAddress]
                         }
 
@@ -247,16 +250,35 @@ class MainViewModel(
                             "Token lookup for '${account.emailAddress}' (${account.provider}): found = ${!token.isNullOrBlank()}"
                         )
 
-                        if (!token.isNullOrBlank()) {
+                        // For Outlook, if the token is missing/blank, we want to proceed to the fetch block
+                        // or return a explicit Sign-in Expired error result rather than skipping.
+                        val shouldProcess = !token.isNullOrBlank() || account.provider == AccountProvider.OUTLOOK
+
+                        if (shouldProcess) {
+                            val effectiveToken = token ?: ""
+                            if (account.provider == AccountProvider.OUTLOOK && effectiveToken.isBlank()) {
+                                return@async AccountFetchResult(
+                                    emailAddress = account.emailAddress,
+                                    error = "Sign-in Expired",
+                                    formattedCount = null,
+                                    unreadTodayStr = null,
+                                    totalPriorityStr = null,
+                                    todayPriorityStr = null,
+                                    sortedEmails = emptyList()
+                                )
+                            }
+
                             val emailRepo: EmailRepository = when (account.provider) {
                                 AccountProvider.OUTLOOK -> OutlookEmailRepository(
                                     emailAddress = account.emailAddress,
-                                    tokenProvider = { token!! }
+                                    tokenProvider = {
+                                        prefs.getString("microsoft_access_token", null)
+                                    }
                                 )
                                 else -> GmailServiceRepository(
                                     context = context,
                                     emailAddress = account.emailAddress,
-                                    tokenProvider = { token!! }
+                                    tokenProvider = { effectiveToken }
                                 )
                             }
 
@@ -384,7 +406,6 @@ class MainViewModel(
             }
         }
     }
-
     // Helper data class for thread-safe result collection
     private data class AccountFetchResult(
         val emailAddress: String,
@@ -444,6 +465,23 @@ class MainViewModel(
 
             viewModelScope.launch {
                 loadAllDefinedAccounts(context)
+            }
+        }
+    }
+    fun exchangeCodeForToken(authorizationCode: String) {
+        viewModelScope.launch {
+            try {
+                // Delegate the network request and persistence to your repository
+                val success = repository.exchangeAuthorizationCode(authorizationCode)
+
+                if (success) {
+                    // Successfully exchanged and stored tokens; reload your account data
+                    loadAllDefinedAccounts(getApplication())
+                } else {
+                    android.util.Log.e("OAuth", "Failed to exchange authorization code for tokens.")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("OAuth", "Exception during token exchange: ${e.message}", e)
             }
         }
     }
