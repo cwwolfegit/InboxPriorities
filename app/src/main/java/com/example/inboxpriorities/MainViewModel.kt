@@ -24,42 +24,7 @@ class MainViewModel(
     private val repository: RulesRepository
 ) : AndroidViewModel(application) {
 
-    private val prefs = application.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
-    // In-memory cache mapping email addresses to their active Google ID tokens
-    private val activeGoogleTokens = mutableMapOf<String, String>()
-    private val activeOutlookTokens = mutableMapOf<String, String>()
-
-    init {
-        // Automatically restore saved tokens from storage on startup
-        prefs.all.forEach { (key, value) ->
-            if (key.startsWith("token_") && value is String) {
-                val email = key.removePrefix("token_")
-                if (email.isNotBlank() && value.isNotBlank()) {
-                    // Route to the appropriate map based on the email domain or account type
-                    if (email.endsWith("@outlook.com", ignoreCase = true)) {
-                        activeOutlookTokens[email] = value
-                        android.util.Log.d("Debug_MainViewModel", "Restored saved Outlook token for $email from SharedPreferences")
-                    } else {
-                        activeGoogleTokens[email] = value
-                        android.util.Log.d("Debug_MainViewModel", "Restored saved Google token for $email from SharedPreferences")
-                    }
-                }
-            }
-        }
-    }
-
-    fun cacheGoogleToken(email: String, idToken: String) {
-        android.util.Log.d("Debug_MainViewModel", "cacheGoogleToken called for email: '$email', token length: ${idToken.length}")
-        if (email.isNotBlank() && idToken.isNotBlank()) {
-            activeGoogleTokens[email] = idToken
-            prefs.edit().putString("token_$email", idToken).apply()
-            android.util.Log.d("Debug_MainViewModel", "Successfully cached and persisted token for $email")
-        } else {
-            android.util.Log.d("Debug_MainViewModel", "FAILED to cache token: email or token was blank.")
-        }
-    }
-
-    // --- State Flows ---
+    // --- State Flows (Declared first so they initialize before the init block) ---
 
     val rules: StateFlow<List<PriorityRule>> = repository.rulesFlow
         .stateIn(
@@ -80,18 +45,86 @@ class MainViewModel(
 
     private val _unreadCounts = MutableStateFlow<Map<String, String>>(emptyMap())
     val unreadCounts: StateFlow<Map<String, String>> = _unreadCounts.asStateFlow()
+
     private val _unreadTodayCounts = MutableStateFlow<Map<String, String>>(emptyMap())
     val unreadTodayCounts: StateFlow<Map<String, String>> = _unreadTodayCounts.asStateFlow()
+
     private val _accountErrors = MutableStateFlow<Map<String, String>>(emptyMap())
     val accountErrors: StateFlow<Map<String, String>> = _accountErrors.asStateFlow()
+
     private val _ruleError = MutableStateFlow<String?>(null)
     val ruleError: StateFlow<String?> = _ruleError.asStateFlow()
+
     private val _priorityUnreadCounts = MutableStateFlow<Map<String, String>>(emptyMap())
     val priorityUnreadCounts: StateFlow<Map<String, String>> = _priorityUnreadCounts.asStateFlow()
+
     private val _priorityTodayCounts = MutableStateFlow<Map<String, String>>(emptyMap())
     val priorityTodayCounts: StateFlow<Map<String, String>> = _priorityTodayCounts.asStateFlow()
+
     private val _todayPriorityEmailsByAccount = MutableStateFlow<Map<String, List<Email>>>(emptyMap())
     val todayPriorityEmailsByAccount: StateFlow<Map<String, List<Email>>> = _todayPriorityEmailsByAccount.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    // --- SharedPreferences & Token Caches ---
+    private val prefs = application.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
+    private val activeGoogleTokens = mutableMapOf<String, String>()
+    private val activeOutlookTokens = mutableMapOf<String, String>()
+    private val activeGoogleAccounts = mutableMapOf<String, GoogleSignInAccount>()
+
+    private var hasLoadedAccountsOnStartup = false
+
+    init {
+        try {
+            // Automatically restore saved tokens from storage on startup
+            prefs.all.forEach { (key, value) ->
+                if (key.startsWith("token_") && value is String) {
+                    val email = key.removePrefix("token_")
+                    if (email.isNotBlank() && value.isNotBlank()) {
+                        if (email.endsWith("@outlook.com", ignoreCase = true)) {
+                            activeOutlookTokens[email] = value
+                            android.util.Log.d("Debug_MainViewModel", "Restored saved Outlook token for $email from SharedPreferences")
+                        } else {
+                            activeGoogleTokens[email] = value
+                            android.util.Log.d("Debug_MainViewModel", "Restored saved Google token for $email from SharedPreferences")
+                        }
+                    }
+                }
+            }
+
+            // Wait for Room database to emit the saved accounts before triggering fetches
+            viewModelScope.launch {
+                try {
+                    refreshDeviceAccountsCache(getApplication())
+
+                    // Collect from accountsFlow until we get a populated list (or handle it reactively)
+                    accounts.collect { accountList ->
+                        if (accountList.isNotEmpty() && !hasLoadedAccountsOnStartup) {
+                            loadAllDefinedAccounts(getApplication())
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("Debug_MainViewModel", "Error in accounts initialization coroutine", e)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("Debug_MainViewModel", "Error in init block preference parsing", e)
+        }
+
+        android.util.Log.d("Debug_MainViewModelDebug", "MainViewModel initialized")
+    }
+    fun cacheGoogleToken(email: String, idToken: String) {
+        android.util.Log.d("Debug_MainViewModel", "cacheGoogleToken called for email: '$email', token length: ${idToken.length}")
+        if (email.isNotBlank() && idToken.isNotBlank()) {
+            activeGoogleTokens[email] = idToken
+            prefs.edit().putString("token_$email", idToken).apply()
+            android.util.Log.d("Debug_MainViewModel", "Successfully cached and persisted token for $email")
+        } else {
+            android.util.Log.d("Debug_MainViewModel", "FAILED to cache token: email or token was blank.")
+        }
+    }
+
     // --- Priority Rules Functions ---
 
     fun toggleRule(ruleToToggle: PriorityRule, isEnabled: Boolean) {
@@ -167,7 +200,6 @@ class MainViewModel(
 
     fun addAccount(email: String, nickname: String, provider: AccountProvider) {
         viewModelScope.launch {
-            // Check if the account is already in the list to prevent duplicates
             val existingAccount = accounts.value.find { it.emailAddress.equals(email, ignoreCase = true) }
 
             if (existingAccount == null) {
@@ -182,7 +214,6 @@ class MainViewModel(
                 android.util.Log.d("Debug_MainViewModel", "Added new account: $email")
             } else {
                 android.util.Log.d("Debug_MainViewModel", "Account already exists: $email. Skipping duplicate insertion.")
-                // Optional: Update the existing account's nickname or details instead if needed
             }
         }
     }
@@ -204,17 +235,18 @@ class MainViewModel(
     }
 
     // --- Gmail Sync Functions ---
-    init {
-        // Optional: If you want it to attempt loading once accounts are loaded,
-        // or you can call it explicitly from your Activity/Fragment/Composable.
-        android.util.Log.d("Debug_MainViewModelDebug", "MainViewModel initialized")
-    }
 
-    private var hasLoadedAccountsOnStartup = false
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     fun loadAllDefinedAccounts(context: Context) {
-        if (hasLoadedAccountsOnStartup) return
+        if (accounts.value.isEmpty()) {
+            android.util.Log.d("Debug_MainViewModel", "loadAllDefinedAccounts deferred: accounts list is still empty.")
+            hasLoadedAccountsOnStartup = false // Allow retry when database emits items
+            return
+        }
+
+        if (hasLoadedAccountsOnStartup) {
+            android.util.Log.d("Debug_MainViewModel", "loadAllDefinedAccounts skipped: already loaded on startup.")
+            return
+        }
         hasLoadedAccountsOnStartup = true
 
         _isLoading.value = true
@@ -223,153 +255,175 @@ class MainViewModel(
                 android.util.Log.d("Debug_MainViewModel", "--- START loadAllDefinedAccounts ---")
                 android.util.Log.d(
                     "Debug_MainViewModel",
-                    "Accounts in memory count: ${accounts.value.size}"
+                    "Accounts in memory count: ${accounts.value.size}, details: ${accounts.value.map { it.emailAddress to it.provider }}"
                 )
                 android.util.Log.d(
                     "Debug_MainViewModel",
-                    "Active tokens currently cached: ${activeGoogleTokens.keys}"
+                    "Active Google tokens currently cached keys: ${activeGoogleTokens.keys}"
                 )
 
-                // Initialize SharedPreferences reference for AuthPrefs lookup
                 val prefs = context.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
+                android.util.Log.d(
+                    "Debug_MainViewModel",
+                    "AuthPrefs all stored keys: ${prefs.all.keys}"
+                )
 
-                // 1. Launch all account fetches concurrently using async / awaitAll
+                if (accounts.value.isEmpty()) {
+                    android.util.Log.w(
+                        "Debug_MainViewModel",
+                        "WARNING: accounts.value is empty at startup! Check account database/persistence initialization."
+                    )
+                }
+
                 val deferredResults = accounts.value.map { account ->
                     async(Dispatchers.IO) {
-                        android.util.Log.d(
-                            "Debug_MainViewModel",
-                            "Checking account: ${account.emailAddress}"
-                        )
-                        val token = when (account.provider) {
-                            AccountProvider.OUTLOOK -> prefs.getString("microsoft_access_token", null)
-                            else -> activeGoogleTokens[account.emailAddress]
-                        }
-
-                        android.util.Log.d(
-                            "Debug_MainViewModel",
-                            "Token lookup for '${account.emailAddress}' (${account.provider}): found = ${!token.isNullOrBlank()}"
-                        )
-
-                        // For Outlook, if the token is missing/blank, we want to proceed to the fetch block
-                        // or return a explicit Sign-in Expired error result rather than skipping.
-                        val shouldProcess = !token.isNullOrBlank() || account.provider == AccountProvider.OUTLOOK
-
-                        if (shouldProcess) {
-                            val effectiveToken = token ?: ""
-                            if (account.provider == AccountProvider.OUTLOOK && effectiveToken.isBlank()) {
-                                return@async AccountFetchResult(
-                                    emailAddress = account.emailAddress,
-                                    error = "Sign-in Expired",
-                                    formattedCount = null,
-                                    unreadTodayStr = null,
-                                    totalPriorityStr = null,
-                                    todayPriorityStr = null,
-                                    sortedEmails = emptyList()
-                                )
+                        try {
+                            android.util.Log.d(
+                                "Debug_MainViewModel",
+                                "Checking account: ${account.emailAddress} (ID: ${account.id}, Provider: ${account.provider})"
+                            )
+                            val token = when (account.provider) {
+                                AccountProvider.OUTLOOK -> prefs.getString("microsoft_access_token", null)
+                                else -> activeGoogleTokens[account.emailAddress]
                             }
-
-                            val emailRepo: EmailRepository = when (account.provider) {
-                                AccountProvider.OUTLOOK -> OutlookEmailRepository(
-                                    emailAddress = account.emailAddress,
-                                    tokenProvider = {
-                                        prefs.getString("microsoft_access_token", null)
-                                    }
-                                )
-                                else -> GmailServiceRepository(
-                                    context = context,
-                                    emailAddress = account.emailAddress,
-                                    tokenProvider = { effectiveToken }
-                                )
-                            }
-
-                            val unreadResult = emailRepo.getUnreadInboxCount()
-                            val unreadToday = emailRepo.getUnreadTodayCount()
 
                             android.util.Log.d(
                                 "Debug_MainViewModel",
-                                "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
+                                "Token lookup for '${account.emailAddress}' (${account.provider}): found = ${!token.isNullOrBlank()}"
                             )
 
-                            // Fetch recent emails
-                            val recentEmails = emailRepo.fetchEmails(account.id)
+                            val shouldProcess = !token.isNullOrBlank() || account.provider == AccountProvider.OUTLOOK
 
-                            if (unreadResult.first == -1 || unreadToday == -1) {
-                                AccountFetchResult(
-                                    emailAddress = account.emailAddress,
-                                    error = "Sign-in Expired",
-                                    formattedCount = null,
-                                    unreadTodayStr = null,
-                                    totalPriorityStr = null,
-                                    todayPriorityStr = null,
-                                    sortedEmails = emptyList()
+                            if (shouldProcess) {
+                                val effectiveToken = token ?: ""
+                                if (account.provider == AccountProvider.OUTLOOK && effectiveToken.isBlank()) {
+                                    android.util.Log.w("Debug_MainViewModel", "Outlook token is blank for ${account.emailAddress}, returning Sign-in Expired.")
+                                    return@async AccountFetchResult(
+                                        emailAddress = account.emailAddress,
+                                        error = "Sign-in Expired",
+                                        formattedCount = null,
+                                        unreadTodayStr = null,
+                                        totalPriorityStr = null,
+                                        todayPriorityStr = null,
+                                        sortedEmails = emptyList()
+                                    )
+                                }
+
+                                val emailRepo: EmailRepository = when (account.provider) {
+                                    AccountProvider.OUTLOOK -> OutlookEmailRepository(
+                                        emailAddress = account.emailAddress,
+                                        tokenProvider = {
+                                            prefs.getString("microsoft_access_token", null)
+                                        }
+                                    )
+                                    else -> GmailServiceRepository(
+                                        context = context,
+                                        emailAddress = account.emailAddress,
+                                        tokenProvider = { effectiveToken }
+                                    )
+                                }
+
+                                android.util.Log.d("Debug_MainViewModel", "Fetching unread counts for ${account.emailAddress}...")
+                                val unreadResult = emailRepo.getUnreadInboxCount()
+                                val unreadToday = emailRepo.getUnreadTodayCount()
+
+                                android.util.Log.d(
+                                    "Debug_MainViewModel",
+                                    "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
                                 )
+
+                                val recentEmails = emailRepo.fetchEmails(account.id)
+                                android.util.Log.d("Debug_MainViewModel", "Fetched ${recentEmails.size} recent emails for ${account.emailAddress}")
+
+                                if (unreadResult.first == -1 || unreadToday == -1) {
+                                    android.util.Log.w("Debug_MainViewModel", "Invalid unread count (-1) detected for ${account.emailAddress}, marking Sign-in Expired.")
+                                    AccountFetchResult(
+                                        emailAddress = account.emailAddress,
+                                        error = "Sign-in Expired",
+                                        formattedCount = null,
+                                        unreadTodayStr = null,
+                                        totalPriorityStr = null,
+                                        todayPriorityStr = null,
+                                        sortedEmails = emptyList()
+                                    )
+                                } else {
+                                    val applicableRules = rules.value.filter { rule ->
+                                        android.util.Log.d("Debug_MainViewModel", "Rule '${rule.name}' targetAccountId: ${rule.targetAccountId}, current account.id: ${account.id}")
+                                        rule.targetAccountId == null || rule.targetAccountId == account.id
+                                    }
+
+                                    val calendar = java.util.Calendar.getInstance().apply {
+                                        set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                        set(java.util.Calendar.MINUTE, 0)
+                                        set(java.util.Calendar.SECOND, 0)
+                                        set(java.util.Calendar.MILLISECOND, 0)
+                                    }
+                                    val startOfTodayMillis = calendar.timeInMillis
+
+                                    var totalPriorityCount = 0
+                                    var todayPriorityCount = 0
+                                    val accountPriorityEmails = mutableListOf<Email>()
+
+                                    for (email in recentEmails) {
+                                        val (level, _) = PriorityEvaluator.evaluatePriority(email.sender, email.subject, applicableRules)
+
+                                        if (level != PriorityLevel.NONE) {
+                                            totalPriorityCount++
+                                            accountPriorityEmails.add(email.copy(priorityLevel = level))
+
+                                            if (email.timestamp >= startOfTodayMillis) {
+                                                todayPriorityCount++
+                                            }
+                                        }
+                                    }
+
+                                    val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
+                                    val sortedEmails = if (accountPriorityEmails.isNotEmpty()) {
+                                        accountPriorityEmails.sortedBy { email ->
+                                            when (email.priorityLevel) {
+                                                PriorityLevel.HIGH -> 0
+                                                PriorityLevel.MEDIUM -> 1
+                                                PriorityLevel.LOW -> 2
+                                                PriorityLevel.NONE -> 3
+                                            }
+                                        }
+                                    } else emptyList()
+
+                                    AccountFetchResult(
+                                        emailAddress = account.emailAddress,
+                                        error = null,
+                                        formattedCount = formattedCount,
+                                        unreadTodayStr = unreadToday.toString(),
+                                        totalPriorityStr = totalPriorityCount.toString(),
+                                        todayPriorityStr = todayPriorityCount.toString(),
+                                        sortedEmails = sortedEmails
+                                    )
+                                }
                             } else {
-                                val applicableRules = rules.value.filter { rule ->
-                                    android.util.Log.d("Debug_MainViewModel", "Rule '${rule.name}' targetAccountId: ${rule.targetAccountId}, current account.id: ${account.id}")
-                                    rule.targetAccountId == null || rule.targetAccountId == account.id
-                                }
-
-                                val calendar = java.util.Calendar.getInstance().apply {
-                                    set(java.util.Calendar.HOUR_OF_DAY, 0)
-                                    set(java.util.Calendar.MINUTE, 0)
-                                    set(java.util.Calendar.SECOND, 0)
-                                    set(java.util.Calendar.MILLISECOND, 0)
-                                }
-                                val startOfTodayMillis = calendar.timeInMillis
-
-                                var totalPriorityCount = 0
-                                var todayPriorityCount = 0
-                                val accountPriorityEmails = mutableListOf<Email>()
-
-                                for (email in recentEmails) {
-                                    val (level, _) = PriorityEvaluator.evaluatePriority(email.sender, email.subject, applicableRules)
-
-                                    if (level != PriorityLevel.NONE) {
-                                        totalPriorityCount++
-                                        accountPriorityEmails.add(email.copy(priorityLevel = level))
-
-                                        if (email.timestamp >= startOfTodayMillis) {
-                                            todayPriorityCount++
-                                        }
-                                    }
-                                }
-
-                                val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
-                                val sortedEmails = if (accountPriorityEmails.isNotEmpty()) {
-                                    accountPriorityEmails.sortedBy { email ->
-                                        when (email.priorityLevel) {
-                                            PriorityLevel.HIGH -> 0
-                                            PriorityLevel.MEDIUM -> 1
-                                            PriorityLevel.LOW -> 2
-                                            PriorityLevel.NONE -> 3
-                                        }
-                                    }
-                                } else emptyList()
-
-                                AccountFetchResult(
-                                    emailAddress = account.emailAddress,
-                                    error = null,
-                                    formattedCount = formattedCount,
-                                    unreadTodayStr = unreadToday.toString(),
-                                    totalPriorityStr = totalPriorityCount.toString(),
-                                    todayPriorityStr = todayPriorityCount.toString(),
-                                    sortedEmails = sortedEmails
+                                android.util.Log.d(
+                                    "Debug_MainViewModel",
+                                    "SKIPPED API call for ${account.emailAddress}: No cached token available at startup."
                                 )
+                                null
                             }
-                        } else {
-                            android.util.Log.d(
-                                "Debug_MainViewModel",
-                                "SKIPPED API call for ${account.emailAddress}: No cached token available at startup."
+                        } catch (e: Exception) {
+                            android.util.Log.e("Debug_MainViewModel", "Exception caught while processing account ${account.emailAddress}", e)
+                            AccountFetchResult(
+                                emailAddress = account.emailAddress,
+                                error = "Error: ${e.localizedMessage ?: "Unknown exception"}",
+                                formattedCount = null,
+                                unreadTodayStr = null,
+                                totalPriorityStr = null,
+                                todayPriorityStr = null,
+                                sortedEmails = emptyList()
                             )
-                            null
                         }
                     }
                 }
 
-                // 2. Await all background jobs concurrently
                 val results = deferredResults.awaitAll()
+                android.util.Log.d("Debug_MainViewModel", "All account fetch jobs completed. Results count: ${results.size}")
 
-                // 3. Aggregate results and update StateFlows safely
                 val newErrors = _accountErrors.value.toMutableMap()
                 val newUnread = _unreadCounts.value.toMutableMap()
                 val newUnreadToday = _unreadTodayCounts.value.toMutableMap()
@@ -378,8 +432,12 @@ class MainViewModel(
                 val allAccountPriorityMap = mutableMapOf<String, List<Email>>()
 
                 for (res in results) {
-                    if (res == null) continue
+                    if (res == null) {
+                        android.util.Log.d("Debug_MainViewModel", "Skipping null result item.")
+                        continue
+                    }
                     if (res.error != null) {
+                        android.util.Log.d("Debug_MainViewModel", "Result error for ${res.emailAddress}: ${res.error}")
                         newErrors[res.emailAddress] = res.error
                     } else {
                         newErrors.remove(res.emailAddress)
@@ -399,13 +457,17 @@ class MainViewModel(
                 _priorityUnreadCounts.value = newPriorityUnread
                 _priorityTodayCounts.value = newPriorityToday
                 _todayPriorityEmailsByAccount.value = allAccountPriorityMap
+                android.util.Log.d("Debug_MainViewModel", "StateFlows successfully updated after account load.")
 
+            } catch (e: Exception) {
+                android.util.Log.e("Debug_MainViewModel", "Fatal exception in loadAllDefinedAccounts coroutine", e)
             } finally {
                 _isLoading.value = false
                 android.util.Log.d("Debug_MainViewModel", "--- END loadAllDefinedAccounts ---")
             }
         }
     }
+
     // Helper data class for thread-safe result collection
     private data class AccountFetchResult(
         val emailAddress: String,
@@ -416,12 +478,9 @@ class MainViewModel(
         val todayPriorityStr: String?,
         val sortedEmails: List<Email>
     )
-    // Cache map for GoogleSignInAccount objects
-    private val activeGoogleAccounts = mutableMapOf<String, GoogleSignInAccount>()
 
     fun cacheGoogleAccount(account: GoogleSignInAccount) {
         val email = account.email
-        // Ensure we only cache accounts that have been explicitly added to the app
         if (!email.isNullOrBlank() && accounts.value.any { it.emailAddress.equals(email, ignoreCase = true) }) {
             activeGoogleAccounts[email] = account
         }
@@ -439,19 +498,19 @@ class MainViewModel(
         val allowedEmails = accounts.value.map { it.emailAddress }
 
         for (acc in googleAccounts) {
-            // Only cache if the device account matches an account explicitly added to the app
             if (allowedEmails.contains(acc.name) && !activeGoogleAccounts.containsKey(acc.name)) {
                 activeGoogleAccounts[acc.name] = GoogleSignInAccount.fromAccount(acc)
                 android.util.Log.d("Debug_MainViewModel", "Auto-mapped allowed account: ${acc.name}")
             }
         }
     }
+
     fun refreshCountsIfNeeded(context: Context) {
-        // Automatically trigger account unread check if we haven't fetched them yet
         if (_unreadCounts.value.isEmpty() && accounts.value.isNotEmpty()) {
             loadAllDefinedAccounts(context)
         }
     }
+
     fun retryAccountAuth(email: String, newToken: String, context: Context) {
         if (email.isNotBlank() && newToken.isNotBlank()) {
             cacheGoogleToken(email, newToken)
@@ -460,7 +519,6 @@ class MainViewModel(
                 remove(email)
             }
 
-            // Allow the accounts to reload by resetting the startup flag
             hasLoadedAccountsOnStartup = false
 
             viewModelScope.launch {
@@ -468,14 +526,13 @@ class MainViewModel(
             }
         }
     }
+
     fun exchangeCodeForToken(authorizationCode: String) {
         viewModelScope.launch {
             try {
-                // Delegate the network request and persistence to your repository
                 val success = repository.exchangeAuthorizationCode(authorizationCode)
 
                 if (success) {
-                    // Successfully exchanged and stored tokens; reload your account data
                     loadAllDefinedAccounts(getApplication())
                 } else {
                     android.util.Log.e("OAuth", "Failed to exchange authorization code for tokens.")
