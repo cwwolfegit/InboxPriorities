@@ -533,6 +533,7 @@ class MainViewModel(
                 val success = repository.exchangeAuthorizationCode(authorizationCode)
 
                 if (success) {
+                    hasLoadedAccountsOnStartup = false
                     loadAllDefinedAccounts(getApplication())
                 } else {
                     android.util.Log.e("OAuth", "Failed to exchange authorization code for tokens.")

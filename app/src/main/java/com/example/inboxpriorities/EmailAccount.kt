@@ -5,8 +5,7 @@ import java.util.UUID
 
 enum class AccountProvider {
     GMAIL,
-    OUTLOOK,
-    OTHER
+    OUTLOOK
 }
 @Serializable
 data class EmailAccount(
