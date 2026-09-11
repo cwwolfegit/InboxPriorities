@@ -23,6 +23,7 @@ import com.example.inboxpriorities.diagnostics.GmailDiagnostic
 import android.content.Intent
 import android.net.Uri
 import android.content.ActivityNotFoundException
+import android.widget.Toast
 
 enum class AppTab {
     DASHBOARD,
@@ -165,13 +166,17 @@ class MainActivity : ComponentActivity() {
                                 HelpScreen(
                                     onContactSupportClick = {
                                         val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                            data = Uri.parse("mailto:support@inboxpriorities.com")
+                                            data = Uri.parse("mailto:InboxPriorities@outlook.com")
                                             putExtra(Intent.EXTRA_SUBJECT, "Inbox Priorities Support / Feedback")
                                         }
                                         try {
                                             this@MainActivity.startActivity(intent)
                                         } catch (e: ActivityNotFoundException) {
-                                            // Handle case where no email app is available
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                "No email app found on this device.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                     }
                                 )
