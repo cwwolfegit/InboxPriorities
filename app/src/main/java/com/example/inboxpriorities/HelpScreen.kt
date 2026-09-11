@@ -29,7 +29,65 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+
+data class FaqItem(val question: String, val answer: String)
+
+val faqList = listOf(
+    FaqItem(
+        question = "Q: How does the app handle my credentials and email data securely?",
+        answer = "A: The app uses secure OAuth authentication protocols directly through your providers, ensuring your credentials are never stored locally."
+    ),
+    FaqItem(
+        question = "Q: Does the app collect any personal data?",
+        answer = "A: No, the app processes your unread messages locally and via secure provider APIs without collecting, storing, or selling your personal data or email contents on external servers."
+    ),
+    FaqItem(
+        question = "Q: What permissions does the app require to access my email?",
+        answer = "A: The app requests only the read-only or scoped permissions necessary via OAuth to retrieve unread message headers and snippets for your priority dashboard, without allowing the app to delete or alter your emails."
+    ),
+    FaqItem(
+        question = "Q: Are my custom rules and app preferences stored securely?",
+        answer = "A: Yes, all local custom rules, filters, and dashboard preferences are saved securely in your device's local storage."
+    ),
+    FaqItem(
+        question = "Q: Is there a limit to the number of unread emails that the app will check?",
+        answer = "A: Yes, the app checks up to 201 unread emails in total and then processes the first 50 unread messages specifically for priority counts and categorization."
+    ),
+    FaqItem(
+        question = "Q: How many email accounts can I add?",
+        answer = "A: In the free version, up to three email accounts are supported."
+    ),
+    FaqItem(
+        question = "Q: How many priority rules can I add?",
+        answer = "A: In the free version, you can add up to three priority rules."
+    ),
+    FaqItem(
+        question = "Q: What email providers are supported?",
+        answer = "A: Gmail and Outlook."
+    ),
+    FaqItem(
+        question = "Q: How do I add or remove an email account?",
+        answer = "A: Select \"Accounts\" from the menu. In the free version, if you have not reached the three-account limit, click \"Add Account\" and enter the required details. Use the edit or delete icons to modify or remove an existing account."
+    ),
+    FaqItem(
+        question = "Q: How do I add or remove a priority rule?",
+        answer = "A: Select \"Rules\" from the menu. In the free version, if you have not reached the three-rule limit, click \"Add Rule\" and enter the required details. Use the edit, delete, or \"active\" switch to modify, remove, or toggle the rule between active and inactive states."
+    ),
+    FaqItem(
+        question = "Q: How do priority rules work?",
+        answer = "A: The match pattern is evaluated alongside the rule type setting (Sender or Subject). For Sender rules, a match occurs when the sender's email contains the match pattern. For Subject rules, a match occurs when the email subject contains the match pattern. When a match is found, the priority level is assigned and counted; otherwise, the email is not designated as a priority message."
+    ),
+    FaqItem(
+        question = "Q: What happens if my email sign-in or session expires?",
+        answer = "A: If your provider session or OAuth token expires, the app will prompt you to re-authenticate securely through your account settings to resume fetching unread messages."
+    ),
+    FaqItem(
+        question = "Q: How do I view my categorized priority emails on the dashboard?",
+        answer = "A: Tap or expand any summary section on your dashboard to view the full list of identified priority emails, along with their headers and snippets."
+    )
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,9 +130,25 @@ fun HelpScreen(
                         }
                         if (isFaqExpanded) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = "Q: How do I add a new email account?\nA: Navigate to settings and select 'Add Account' to link Gmail or Outlook.")
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = "Q: What are the current feature limits?\nA: The app handles multi-provider unread retrieval, custom matching rules, and dynamic inbox prioritization.")
+                            faqList.forEach { item ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = item.question,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = item.answer,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(start = 16.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -109,7 +183,7 @@ fun HelpScreen(
                         Text(text = "About Inbox Priorities", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(text = "Version 1.0.0 (MVP)")
-                        Text(text = "Inbox Priorities is a custom email productivity dashboard that shows emails from all your email accounts in one easy-to-read screen, allowing you to set smart rules to filter out unimportant emails and focus on important emails first.")
+                        Text(text = "Inbox Priorities is a customizable email productivity dashboard that shows unread priority emails from all your email accounts in one easy-to-read screen, allowing you to set priority rules that filter out non-priority emails allowing you to focus on your priority emails first.")
                     }
                 }
             }
