@@ -22,11 +22,13 @@ import com.example.inboxpriorities.diagnostics.GmailDiagnostic
 
 import android.content.Intent
 import android.net.Uri
+import android.content.ActivityNotFoundException
 
 enum class AppTab {
     DASHBOARD,
     ACCOUNTS,
-    RULES
+    RULES,
+    HELP
 }
 
 class MainActivity : ComponentActivity() {
@@ -98,6 +100,12 @@ class MainActivity : ComponentActivity() {
                                 icon = { Text("⚙️", fontSize = 20.sp) },
                                 label = { Text("Rules") }
                             )
+                            NavigationBarItem(
+                                selected = selectedTab == AppTab.HELP,
+                                onClick = { selectedTab = AppTab.HELP },
+                                icon = { Text("❓", fontSize = 20.sp) },
+                                label = { Text("Help") }
+                            )
                         }
                     }
                 ) { innerPadding ->
@@ -150,6 +158,21 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onDeleteRule = { rule ->
                                         viewModel.deleteRule(rule)
+                                    }
+                                )
+                            }
+                            AppTab.HELP -> {
+                                HelpScreen(
+                                    onContactSupportClick = {
+                                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                            data = Uri.parse("mailto:support@inboxpriorities.com")
+                                            putExtra(Intent.EXTRA_SUBJECT, "Inbox Priorities Support / Feedback")
+                                        }
+                                        try {
+                                            this@MainActivity.startActivity(intent)
+                                        } catch (e: ActivityNotFoundException) {
+                                            // Handle case where no email app is available
+                                        }
                                     }
                                 )
                             }
