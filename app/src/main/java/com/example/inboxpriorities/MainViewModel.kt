@@ -26,19 +26,46 @@ class MainViewModel(
 
     // --- State Flows (Declared first so they initialize before the init block) ---
 
-    val rules: StateFlow<List<PriorityRule>> = repository.rulesFlow
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    val rules: StateFlow<List<PriorityRule>> = if (USE_MOCK_SCREENSHOT_DATA) {
+        MutableStateFlow(
+            listOf(
+                PriorityRule(
+                    id = "1",
+                    name = "Important Client",
+                    matchPattern = "client@example.com",
+                    ruleType = RuleType.SENDER_CONTAINS,
+                    priorityLevel = PriorityLevel.HIGH,
+                    isEnabled = true
+                ),
+                PriorityRule(
+                    id = "2",
+                    name = "Project Updates",
+                    matchPattern = "updates",
+                    ruleType = RuleType.SUBJECT_CONTAINS,
+                    priorityLevel = PriorityLevel.MEDIUM,
+                    isEnabled = true
+                ),
+                PriorityRule(
+                    id = "3",
+                    name = "Billing Alerts",
+                    matchPattern = "invoice",
+                    ruleType = RuleType.SUBJECT_CONTAINS,
+                    priorityLevel = PriorityLevel.LOW,
+                    isEnabled = true
+                )
+            )
+        ).asStateFlow()
+    } else {
+        repository.rulesFlow
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+    }
 
-    val accounts: StateFlow<List<EmailAccount>> = repository.accountsFlow
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private val _accounts = MutableStateFlow<List<EmailAccount>>(emptyList())
+    val accounts: StateFlow<List<EmailAccount>> = _accounts.asStateFlow()
 
     private val _emails = MutableStateFlow<List<Email>>(emptyList())
     val emails: StateFlow<List<Email>> = _emails.asStateFlow()
@@ -75,6 +102,10 @@ class MainViewModel(
 
     private var hasLoadedAccountsOnStartup = false
 
+    companion object {
+        private const val USE_MOCK_SCREENSHOT_DATA = true
+    }
+
     init {
         try {
             // Automatically restore saved tokens from storage on startup
@@ -96,9 +127,29 @@ class MainViewModel(
             // Wait for Room database to emit the saved accounts before triggering fetches
             viewModelScope.launch {
                 try {
+                    if (USE_MOCK_SCREENSHOT_DATA) {
+                        _accounts.value = MockDataRepository.accountDashboards.mapIndexed { index, dashboard ->
+                            EmailAccount(
+                                id = (index + 1).toString(),
+                                emailAddress = dashboard.email,
+                                nickname = dashboard.email,
+                                provider = if (dashboard.provider.equals("Outlook", ignoreCase = true)) AccountProvider.OUTLOOK else AccountProvider.GMAIL
+                            )
+                        }
+                    } else {
+                        repository.accountsFlow.collect { accountList ->
+                            _accounts.value = accountList
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("Debug_MainViewModel", "Error collecting accounts flow", e)
+                }
+            }
+
+            viewModelScope.launch {
+                try {
                     refreshDeviceAccountsCache(getApplication())
 
-                    // Collect from accountsFlow until we get a populated list (or handle it reactively)
                     accounts.collect { accountList ->
                         if (accountList.isNotEmpty() && !hasLoadedAccountsOnStartup) {
                             loadAllDefinedAccounts(getApplication())
@@ -237,6 +288,59 @@ class MainViewModel(
     // --- Gmail Sync Functions ---
 
     fun loadAllDefinedAccounts(context: Context) {
+
+        if (USE_MOCK_SCREENSHOT_DATA) {
+            android.util.Log.d("Debug_MainViewModel", "loadAllDefinedAccounts intercepted by mock mode.")
+            _isLoading.value = true
+
+            val mockAccountEntities = MockDataRepository.accountDashboards.mapIndexed { index, dashboard ->
+                EmailAccount(
+                    id = (index + 1).toString(),
+                    emailAddress = dashboard.email,
+                    nickname = dashboard.email,
+                    provider = if (dashboard.provider.equals("Outlook", ignoreCase = true)) AccountProvider.OUTLOOK else AccountProvider.GMAIL
+                )
+            }
+            _accounts.value = mockAccountEntities
+
+            val newUnread = mutableMapOf<String, String>()
+            val newUnreadToday = mutableMapOf<String, String>()
+            val newPriorityUnread = mutableMapOf<String, String>()
+            val newPriorityToday = mutableMapOf<String, String>()
+            val allAccountPriorityMap = mutableMapOf<String, List<Email>>()
+
+            for (dashboard in MockDataRepository.accountDashboards) {
+                val emailKey = dashboard.email
+                newUnread[emailKey] = dashboard.unreadTotalCount.toString()
+                newUnreadToday[emailKey] = dashboard.unreadTodayCount.toString()
+                newPriorityUnread[emailKey] = dashboard.priorityUnreadTotalCount.toString()
+                newPriorityToday[emailKey] = dashboard.priorityUnreadTodayCount.toString()
+
+                val mappedEmails = dashboard.emails.map { mock ->
+                    Email(
+                        id = mock.id,
+                        sender = mock.sender,
+                        subject = mock.subject,
+                        body = mock.snippet,
+                        timestamp = System.currentTimeMillis(),
+                        priorityLevel = if (mock.isPriority) PriorityLevel.HIGH else PriorityLevel.NONE
+                    )
+                }
+                if (mappedEmails.isNotEmpty()) {
+                    allAccountPriorityMap[emailKey] = mappedEmails
+                }
+            }
+
+            _unreadCounts.value = newUnread
+            _unreadTodayCounts.value = newUnreadToday
+            _priorityUnreadCounts.value = newPriorityUnread
+            _priorityTodayCounts.value = newPriorityToday
+            _todayPriorityEmailsByAccount.value = allAccountPriorityMap
+            _isLoading.value = false
+            hasLoadedAccountsOnStartup = true
+            return
+        }
+
         if (accounts.value.isEmpty()) {
             android.util.Log.d("Debug_MainViewModel", "loadAllDefinedAccounts deferred: accounts list is still empty.")
             hasLoadedAccountsOnStartup = false // Allow retry when database emits items

@@ -1,109 +1,101 @@
 package com.example.inboxpriorities
 
+data class AccountDashboardData(
+    val email: String,
+    val provider: String,
+    val unreadTodayCount: Int,
+    val unreadTotalCount: Int,
+    val priorityUnreadTodayCount: Int,
+    val priorityUnreadTotalCount: Int,
+    val emails: List<MockEmail>
+)
+
 object MockDataRepository {
-
-    // --- Dashboard Mock Data ---
-
-    val mockSummary = DashboardSummary(
-        unreadPriorityToday = 8,
-        unreadPriorityTotal = 24,
-        unreadToday = 42,
-        unreadTotal = 156
-    )
-
-    val mockAccounts = listOf(
-        AccountSummary("acc_1", "Work (Gmail)", 5, 18, 18, unreadTotal = 110),
-        AccountSummary("acc_2", "Personal (Outlook)", 3, 6, 6, unreadTotal = 46)
-    )
-
-    val mockSenders = listOf(
-        PrioritySender("boss@company.com", 3),
-        PrioritySender("alerts@clientcorp.com", 2),
-        PrioritySender("support@vendor.com", 3)
-    )
-
-    // --- Raw Email Mock Data (Mapped to recipient accounts) ---
-
-    val mockEmails = listOf(
-        Email(
-            id = "1",
-            sender = "boss@company.com",
-            subject = "Project Status",
-            body = "Need an update on the build.",
-            recipientAccount = "work@company.com",
-            isRead = false,
-            isToday = true,
-            priorityLevel = PriorityLevel.NONE
+    val accountDashboards = listOf(
+        AccountDashboardData(
+            email = "IBXPTest1@gmail.com",
+            provider = "Gmail",
+            unreadTodayCount = 4,
+            unreadTotalCount = 68,
+            priorityUnreadTodayCount = 1,
+            priorityUnreadTotalCount = 15,
+            emails = listOf(
+                MockEmail(
+                    id = "1",
+                    account = "IBXPTest1@gmail.com",
+                    sender = "billing@subscriptions.com",
+                    subject = "Your monthly statement is ready for review",
+                    snippet = "Your invoice #98231 for $49.99 has been successfully processed...",
+                    timestamp = "9:15 AM",
+                    isPriority = true
+                ),
+                MockEmail(
+                    id = "2",
+                    account = "IBXPTest1@gmail.com",
+                    sender = "newsletter@dailyread.com",
+                    subject = "Morning Digest: Top 10 Tech Trends Today",
+                    snippet = "Catch up on the latest developments in mobile architecture...",
+                    timestamp = "8:00 AM",
+                    isPriority = false
+                )
+            )
         ),
-        Email(
-            id = "2",
-            sender = "news@clientcorp.com",
-            subject = "Quarterly Report",
-            body = "Attached is the Q3 overview.",
-            recipientAccount = "work@company.com",
-            isRead = false,
-            isToday = true,
-            priorityLevel = PriorityLevel.NONE
+        AccountDashboardData(
+            email = "IBXPTest2@gmail.com",
+            provider = "Gmail",
+            unreadTodayCount = 2,
+            unreadTotalCount = 45,
+            priorityUnreadTodayCount = 0,
+            priorityUnreadTotalCount = 8,
+            emails = listOf(
+                MockEmail(
+                    id = "3",
+                    account = "IBXPTest2@gmail.com",
+                    sender = "updates@cloud service.io",
+                    subject = "Scheduled maintenance window notification",
+                    snippet = "We will be performing routine infrastructure upgrades...",
+                    timestamp = "Yesterday",
+                    isPriority = false
+                )
+            )
         ),
-        Email(
-            id = "3",
-            sender = "friend@gmail.com",
-            subject = "URGENT: Lunch plans",
-            body = "Are we still meeting today?",
-            recipientAccount = "Personal@outlook.com",
-            isRead = false,
-            isToday = true,
-            priorityLevel = PriorityLevel.NONE
+        AccountDashboardData(
+            email = "IBXPTest3@outlook.com",
+            provider = "Outlook",
+            unreadTodayCount = 6,
+            unreadTotalCount = 88,
+            priorityUnreadTodayCount = 2,
+            priorityUnreadTotalCount = 27,
+            emails = listOf(
+                MockEmail(
+                    id = "4",
+                    account = "IBXPTest3@outlook.com",
+                    sender = "alert@servermonitor.net",
+                    subject = "CRITICAL: High CPU utilization on Prod-01",
+                    snippet = "Server CPU usage has exceeded 95% threshold for over 10 minutes...",
+                    timestamp = "10:42 AM",
+                    isPriority = true
+                )
+            )
         ),
-        Email(
-            id = "4",
-            sender = "billing@service.com",
-            subject = "Monthly Invoice",
-            body = "Your invoice is ready for review.",
-            recipientAccount = "work@company.com",
-            isRead = false,
-            isToday = false,
-            priorityLevel = PriorityLevel.NONE
-        ),
-        Email(
-            id = "5",
-            sender = "support@oldvendor.com",
-            subject = "System Maintenance",
-            body = "Scheduled downtime tonight.",
-            recipientAccount = "Personal@outlook.com",
-            isRead = false,
-            isToday = true,
-            priorityLevel = PriorityLevel.NONE
-        ),
-        Email(
-            id = "6",
-            sender = "newsletter@random.com",
-            subject = "Weekly Digest",
-            body = "Here are the top stories of the week.",
-            recipientAccount = "Personal@outlook.com",
-            isRead = true,
-            isToday = false,
-            priorityLevel = PriorityLevel.NONE
-        ),
-        Email(
-            id = "7",
-            sender = "boss@company.com",
-            subject = "Project Status",
-            body = "Outlook test priority today",
-            recipientAccount = "Personal@outlook.com",
-            isRead = false,
-            isToday = true,
-            priorityLevel = PriorityLevel.NONE
-        ),
-        Email(
-            id = "8",
-            sender = "boss@company.com",
-            subject = "Project Status",
-            body = "Outlook test priority total",
-            recipientAccount = "Personal@outlook.com",
-            isRead = false,
-            isToday = false,
-            priorityLevel = PriorityLevel.NONE
-        )
+        /*AccountDashboardData(
+            email = "IBXPTest4@outlook.com",
+            provider = "Outlook",
+            unreadTodayCount = 0,
+            unreadTotalCount = 0,
+            priorityUnreadTodayCount = 0,
+            priorityUnreadTotalCount = 0,
+            emails = emptyList()
+        )*/
     )
 }
+
+data class MockEmail(
+    val id: String,
+    val account: String,
+    val sender: String,
+    val subject: String,
+    val snippet: String,
+    val timestamp: String,
+    val isPriority: Boolean
+)
