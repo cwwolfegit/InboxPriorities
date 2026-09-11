@@ -109,7 +109,7 @@ fun HelpScreen(
                         Text(text = "About Inbox Priorities", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(text = "Version 1.0.0 (MVP)")
-                        Text(text = "An attention management dashboard designed to organize and prioritize your multi-provider inbox.")
+                        Text(text = "Inbox Priorities is a custom email productivity dashboard that shows emails from all your email accounts in one easy-to-read screen, allowing you to set smart rules to filter out unimportant emails and focus on important emails first.")
                     }
                 }
             }
