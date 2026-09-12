@@ -42,7 +42,7 @@ class MainViewModel(
                     name = "Project Updates",
                     matchPattern = "updates",
                     ruleType = RuleType.SUBJECT_CONTAINS,
-                    priorityLevel = PriorityLevel.MEDIUM,
+                    priorityLevel = PriorityLevel.HIGH,
                     isEnabled = true
                 ),
                 PriorityRule(
@@ -50,7 +50,7 @@ class MainViewModel(
                     name = "Billing Alerts",
                     matchPattern = "invoice",
                     ruleType = RuleType.SUBJECT_CONTAINS,
-                    priorityLevel = PriorityLevel.LOW,
+                    priorityLevel = PriorityLevel.HIGH,
                     isEnabled = true
                 )
             )
@@ -103,7 +103,7 @@ class MainViewModel(
     private var hasLoadedAccountsOnStartup = false
 
     companion object {
-        private const val USE_MOCK_SCREENSHOT_DATA = true
+        private const val USE_MOCK_SCREENSHOT_DATA = false
     }
 
     init {

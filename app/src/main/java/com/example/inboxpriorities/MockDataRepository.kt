@@ -13,7 +13,7 @@ data class AccountDashboardData(
 object MockDataRepository {
     val accountDashboards = listOf(
         AccountDashboardData(
-            email = "IBXPTest1@gmail.com",
+            email = "NBXP1@gmail.com",
             provider = "Gmail",
             unreadTodayCount = 4,
             unreadTotalCount = 68,
@@ -22,26 +22,17 @@ object MockDataRepository {
             emails = listOf(
                 MockEmail(
                     id = "1",
-                    account = "IBXPTest1@gmail.com",
+                    account = "NBXP1@gmail.com",
                     sender = "billing@subscriptions.com",
-                    subject = "Your monthly statement is ready for review",
+                    subject = "Your monthly invoice is ready for review",
                     snippet = "Your invoice #98231 for $49.99 has been successfully processed...",
                     timestamp = "9:15 AM",
                     isPriority = true
                 ),
-                MockEmail(
-                    id = "2",
-                    account = "IBXPTest1@gmail.com",
-                    sender = "newsletter@dailyread.com",
-                    subject = "Morning Digest: Top 10 Tech Trends Today",
-                    snippet = "Catch up on the latest developments in mobile architecture...",
-                    timestamp = "8:00 AM",
-                    isPriority = false
-                )
             )
         ),
         AccountDashboardData(
-            email = "IBXPTest2@gmail.com",
+            email = "NBXP2@gmail.com",
             provider = "Gmail",
             unreadTodayCount = 2,
             unreadTotalCount = 45,
@@ -50,17 +41,17 @@ object MockDataRepository {
             emails = listOf(
                 MockEmail(
                     id = "3",
-                    account = "IBXPTest2@gmail.com",
+                    account = "NBXP2@gmail.com",
                     sender = "updates@cloud service.io",
-                    subject = "Scheduled maintenance window notification",
+                    subject = "Scheduled updates maintenance window notification",
                     snippet = "We will be performing routine infrastructure upgrades...",
                     timestamp = "Yesterday",
-                    isPriority = false
+                    isPriority = true
                 )
             )
         ),
         AccountDashboardData(
-            email = "IBXPTest3@outlook.com",
+            email = "NBXP3@outlook.com",
             provider = "Outlook",
             unreadTodayCount = 6,
             unreadTotalCount = 88,
@@ -69,8 +60,8 @@ object MockDataRepository {
             emails = listOf(
                 MockEmail(
                     id = "4",
-                    account = "IBXPTest3@outlook.com",
-                    sender = "alert@servermonitor.net",
+                    account = "NBXP3@outlook.com",
+                    sender = "client@example.com",
                     subject = "CRITICAL: High CPU utilization on Prod-01",
                     snippet = "Server CPU usage has exceeded 95% threshold for over 10 minutes...",
                     timestamp = "10:42 AM",
@@ -79,7 +70,7 @@ object MockDataRepository {
             )
         ),
         /*AccountDashboardData(
-            email = "IBXPTest4@outlook.com",
+            email = "NBXPTest4@outlook.com",
             provider = "Outlook",
             unreadTodayCount = 0,
             unreadTotalCount = 0,
