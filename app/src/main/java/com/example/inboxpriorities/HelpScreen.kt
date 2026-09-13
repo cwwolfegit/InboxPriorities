@@ -86,6 +86,10 @@ val faqList = listOf(
     FaqItem(
         question = "Q: How do I view my categorized priority emails on the dashboard?",
         answer = "A: Tap or expand any summary section on your dashboard to view the full list of identified priority emails, along with their headers and snippets."
+    ),
+    FaqItem(
+        question = "Q: What are the minimum system requirements to run Inbox Priorities?",
+        answer = "A: The app requires Android 8.0 (API level 26) or higher, a standard physical smartphone, a minimum of 2GB of RAM, and an active internet connection (either Wi-Fi or cellular data) to communicate securely with the email APIs."
     )
 )
 
