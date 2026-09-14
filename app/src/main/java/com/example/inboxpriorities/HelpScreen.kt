@@ -86,6 +86,18 @@ val faqList = listOf(
         answer = "A: Tap or expand any summary section on your dashboard to view the full list of identified priority emails, along with their headers and snippets."
     ),
     FaqItem(
+        question = "Q: Why does tapping an email open Gmail instead of Outlook?",
+        answer = "A: Android routes all generic email actions through a single system-wide default mail application. If Gmail is set as your default handler, it will open automatically."
+    ),
+    FaqItem(
+        question = "Q: Does Inbox Priorities store my account passwords?",
+        answer = "A: No. Your app maintains a lightweight architecture by utilizing your device's native mail clients and system intents directly, meaning your credentials stay securely inside your chosen email apps."
+    ),
+    FaqItem(
+        question = "Q: Can I use both Gmail and Outlook with Inbox Priorities?",
+        answer = "A: Yes. You can either configure your preferred mail app to act as a Unified Inbox (adding both your Google and Microsoft accounts into a single app like Gmail or Outlook), or clear your device's default app settings under Android Settings > Apps > [App Name] > Open by default to choose your client dynamically each time."
+    ),
+    FaqItem(
         question = "Q: What are the minimum system requirements to run Inbox Priorities?",
         answer = "A: The app requires Android 8.0 (API level 26) or higher, a standard physical smartphone, a minimum of 2GB of RAM, and an active internet connection (either Wi-Fi or cellular data) to communicate securely with the email APIs."
     )

@@ -1,4 +1,4 @@
-package     com.chuckwolfe.inboxpriorities
+package com.chuckwolfe.inboxpriorities
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+
+import com.chuckwolfe.inboxpriorities.utils.openEmailInbox
 
 enum class EmailFilterTab { TODAY, TOTAL }
 
@@ -167,7 +169,12 @@ fun DashboardScreen(
                 val hasPriority = numericPriorityTotal > 0
 
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            // Target Outlook app if account is Outlook, otherwise default handler
+                            openEmailInbox(context, account.emailAddress)
+                        },
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
@@ -479,7 +486,7 @@ fun EmailCard(email: Email) {
                 Text(
                     text = email.sender,
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f) // Ensures sender text wraps nicely if long
+                    modifier = Modifier.weight(1f)
                 )
                 if (email.priorityLevel != PriorityLevel.NONE) {
                     Spacer(modifier = Modifier.width(8.dp))

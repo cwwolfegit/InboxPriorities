@@ -17,7 +17,7 @@ class OutlookEmailRepository(
     companion object {
         private const val TAG = "Debug_OutlookRepo"
         // Requesting standard fields matching Microsoft Graph API schema
-        private const val GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/messages?\$select=id,subject,bodyPreview,from,receivedDateTime&\$top=10"
+        private const val GRAPH_API_URL = "https://graph.microsoft.com/v1.0/me/messages?\$filter=isRead eq false&\$select=id,subject,bodyPreview,from,receivedDateTime&\$top=10"
     }
 
     private val client = OkHttpClient()
