@@ -1,4 +1,4 @@
-package com.example.inboxpriorities
+package     com.chuckwolfe.inboxpriorities
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*

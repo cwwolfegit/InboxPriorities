@@ -1,4 +1,4 @@
-package com.example.inboxpriorities
+package     com.chuckwolfe.inboxpriorities
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -14,11 +14,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.inboxpriorities.ui.theme.InboxPrioritiesTheme
-
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
-import com.example.inboxpriorities.diagnostics.GmailDiagnostic
+import     com.chuckwolfe.inboxpriorities.ui.theme.InboxPrioritiesTheme
 
 import android.content.Intent
 import android.net.Uri

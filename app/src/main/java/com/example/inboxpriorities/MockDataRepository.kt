@@ -1,4 +1,4 @@
-package com.example.inboxpriorities
+package     com.chuckwolfe.inboxpriorities
 
 data class AccountDashboardData(
     val email: String,

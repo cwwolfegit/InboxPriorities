@@ -1,4 +1,4 @@
-package com.example.inboxpriorities
+package     com.chuckwolfe.inboxpriorities
 
 // Overall high-level summary (Top Card)
 data class DashboardSummary(

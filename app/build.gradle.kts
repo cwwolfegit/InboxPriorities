@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.inboxpriorities"
+    namespace = "com.chuckwolfe.inboxpriorities"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -14,7 +14,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.inboxpriorities"
+        applicationId = "com.chuckwolfe.inboxpriorities"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

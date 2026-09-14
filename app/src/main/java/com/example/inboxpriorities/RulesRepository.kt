@@ -1,4 +1,4 @@
-package com.example.inboxpriorities
+package     com.chuckwolfe.inboxpriorities
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit

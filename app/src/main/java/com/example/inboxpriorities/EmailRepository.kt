@@ -1,4 +1,4 @@
-package com.example.inboxpriorities
+package     com.chuckwolfe.inboxpriorities
 
 interface EmailRepository {
     suspend fun fetchEmails(accountId: String): List<Email>

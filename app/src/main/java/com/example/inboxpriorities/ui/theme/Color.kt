@@ -1,4 +1,4 @@
-package com.example.inboxpriorities.ui.theme
+package     com.chuckwolfe.inboxpriorities.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

@@ -1,4 +1,4 @@
-package com.example.inboxpriorities
+package     com.chuckwolfe.inboxpriorities
 
 import kotlinx.serialization.Serializable
 import java.util.UUID

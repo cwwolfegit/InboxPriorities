@@ -1,4 +1,4 @@
-package com.example.inboxpriorities.diagnostics
+package     com.chuckwolfe.inboxpriorities.diagnostics
 
 import android.util.Log
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAuthIOException

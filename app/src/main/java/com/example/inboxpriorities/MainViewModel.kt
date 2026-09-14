@@ -1,7 +1,6 @@
-package com.example.inboxpriorities
+package     com.chuckwolfe.inboxpriorities
 
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
