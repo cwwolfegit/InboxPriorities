@@ -286,7 +286,7 @@ class MainViewModel(
 
     // --- Gmail Sync Functions ---
 
-    fun loadAllDefinedAccounts(context: Context) {
+    fun loadAllDefinedAccounts(context: Context, force: Boolean = false) {
 
         if (USE_MOCK_SCREENSHOT_DATA) {
             android.util.Log.d("Debug_MainViewModel", "loadAllDefinedAccounts intercepted by mock mode.")
@@ -346,7 +346,7 @@ class MainViewModel(
             return
         }
 
-        if (hasLoadedAccountsOnStartup) {
+        if (hasLoadedAccountsOnStartup && !force) {
             android.util.Log.d("Debug_MainViewModel", "loadAllDefinedAccounts skipped: already loaded on startup.")
             return
         }

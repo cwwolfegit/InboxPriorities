@@ -85,46 +85,46 @@ fun DashboardScreen(
     ) {
         // --- 1. TOP SUMMARY TOTALS ---
         item {
-            Column {
-                Text(
-                    text = "INBOX PRIORITIES",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp
-                )
-                Text(
-                    text = "Dashboard",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "INBOX PRIORITIES",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp
+                    )
+                    Text(
+                        text = "Dashboard",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                IconButton(
+                    onClick = { viewModel.loadAllDefinedAccounts(context, force = true) },
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh Dashboard",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(12.dp))
-
-            /*Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                val totalUnreadToday = allEvaluatedEmails.count { !it.isRead && it.isToday }
-
-                // Pull the global/primary account unread string, defaulting to "0" if not loaded yet
-                val globalUnreadTotal = unreadCounts.values.firstOrNull() ?: "0"
-
-                MetricCard(
-                    title = "Total Unread",
-                    mainValue = "$totalUnreadToday today",
-                    subValue = "$globalUnreadTotal total",
-                    modifier = Modifier.weight(1f)
-                )
-                MetricCard(
-                    title = "Priority Unread",
-                    mainValue = "$totalPriorityTodaySum today",
-                    subValue = "$totalPriorityTotalSum total",
-                    modifier = Modifier.weight(1f)
-                )
-            }*/
         }
-
         // --- 2. ACCOUNTS BREAKDOWN & INLINE ACCORDIONS ---
         item {
             Text(
@@ -376,7 +376,7 @@ fun DashboardScreen(
                                     onClick = { selectedTab = EmailFilterTab.TODAY },
                                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
                                 ) {
-                                    Text("Today")
+                                    Text("Today ($accountPriorityToday)")
                                 }
                                 SegmentedButton(
                                     selected = selectedTab == EmailFilterTab.TOTAL,
