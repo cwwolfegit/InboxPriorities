@@ -1,14 +1,18 @@
-package     com.chuckwolfe.inboxpriorities
+package com.chuckwolfe.inboxpriorities
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,23 +30,56 @@ fun RulesScreen(
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var ruleToEdit by remember { mutableStateOf<PriorityRule?>(null) }
+    var ruleToDelete by remember { mutableStateOf<PriorityRule?>(null) }
+
+    // State for toggling between free and paid tier simulation (matches Accounts screen behavior)
+    var isPaidTier by remember { mutableStateOf(isProUser) }
 
     val activeRulesCount = rules.count { it.isEnabled }
     val totalRulesCount = rules.size
-    val isLimitReached = !isProUser && totalRulesCount >= freeRuleLimit
+    val isLimitReached = !isPaidTier && totalRulesCount >= freeRuleLimit
 
-    // State to hold the rule pending deletion (null when dialog is closed)
-    var ruleToDelete by remember { mutableStateOf<PriorityRule?>(null) }
+    // Dynamic colors for the main tier badge matching Accounts and Dashboard
+    val badgeBgColor = if (isPaidTier) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer
+    val badgeTextColor = if (isPaidTier) Color(0xFF2E7D32) else Color(0xFF8E0000)
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Rules",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "Rules",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            // Interactive Tier Badge Button next to Title
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = badgeBgColor,
+                                modifier = Modifier
+                                    .clickable { isPaidTier = !isPaidTier }
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = if (isPaidTier) "Paid / Unlimited Tier" else "Free Tier",
+                                    color = badgeTextColor,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             )
         },
@@ -53,7 +90,7 @@ fun RulesScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Prominent Action Header Bar
+            // Sub-header Row (Active Count Badge + Stacked Warning Text + Add Button)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -63,19 +100,43 @@ fun RulesScreen(
             ) {
                 // Active Count Badge
                 Surface(
-                    color = if (isLimitReached) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
-                    shape = MaterialTheme.shapes.small
+                    color = if (isPaidTier) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer,
+                    shape = MaterialTheme.shapes.extraLarge
                 ) {
                     Text(
-                        text = if (isProUser) "Pro (Unlimited)" else "$activeRulesCount / $totalRulesCount Active",
+                        text = "$activeRulesCount / $totalRulesCount Active",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        color = if (isLimitReached) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                        color = if (isPaidTier) Color(0xFF2E7D32) else Color(0xFF8E0000),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
 
-                // High-visibility "+ Add Rule" Button
+                // Two-line limit warning stacked in the middle to prevent button layout shifts
+                if (isLimitReached) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = "Free tier limit of $freeRuleLimit",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = "rules reached.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 11.sp
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+
+                // High-visibility "+ Add Rule" Button (locked in position)
                 Button(
                     onClick = {
                         if (!isLimitReached) {
@@ -86,17 +147,8 @@ fun RulesScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = if (isLimitReached) "Limit Reached" else "+ Add Rule",
+                        text = "+ Add Rule",
                         fontWeight = FontWeight.Bold
-                    )
-                }
-
-                if (isLimitReached) {
-                    Text(
-                        text = "Free tier limit of $freeRuleLimit rules reached.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
             }
@@ -143,7 +195,7 @@ fun RulesScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f) // <-- Fixes scroll bounds inside Column
+                        .weight(1f)
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
@@ -204,6 +256,7 @@ fun RulesScreen(
             )
         }
     }
+
     // Shows the dialog whenever ruleToDelete is non-null
     ruleToDelete?.let { rule ->
         DeleteRuleConfirmationDialog(
@@ -248,7 +301,7 @@ fun DeleteRuleConfirmationDialog(
             ) {
                 Text(
                     text = "Delete",
-                    color = MaterialTheme.colorScheme.error, // Red text for destructive action
+                    color = MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Bold
                 )
             }
