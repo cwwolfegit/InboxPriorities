@@ -55,11 +55,11 @@ val faqList = listOf(
     ),
     FaqItem(
         question = "Q: How many email accounts can I add?",
-        answer = "A: In the free version, up to three email accounts are supported."
+        answer = "A: In the free version, up to three email accounts are supported. This limit is removed if you upgrade to the paid version."
     ),
     FaqItem(
         question = "Q: How many priority rules can I add?",
-        answer = "A: In the free version, you can add up to three priority rules."
+        answer = "A: In the free version, you can add up to three priority rules, with unlimited rules available in the paid version."
     ),
     FaqItem(
         question = "Q: What email providers are supported?",
@@ -86,8 +86,12 @@ val faqList = listOf(
         answer = "A: Tap or expand any summary section on your dashboard to view the full list of identified priority emails, along with their headers and snippets."
     ),
     FaqItem(
-        question = "Q: Why does tapping an email open Gmail instead of Outlook?",
-        answer = "A: Android routes all generic email actions through a single system-wide default mail application. If Gmail is set as your default handler, it will open automatically."
+        question = "Q: What happens when I tap an email in the expanded account card on the dashboard?",
+        answer = "A: Tapping an email from the account card directly launches your native email application (such as Microsoft Outlook for Outlook accounts or Gmail for Google accounts) straight to your inbox, allowing you to easily view, read, and respond to your messages."
+    ),
+    FaqItem(
+        question = "Q: Can I reply to emails directly inside Inbox Priorities?",
+        answer = "A: No. Inbox Priorities is designed as a lightweight, non-invasive dashboard. When you tap an email, it seamlessly hands off control to your native email app so you can manage your messages securely within your trusted email client."
     ),
     FaqItem(
         question = "Q: Does Inbox Priorities store my account passwords?",
@@ -102,7 +106,6 @@ val faqList = listOf(
         answer = "A: The app requires Android 8.0 (API level 26) or higher, a standard physical smartphone, a minimum of 2GB of RAM, and an active internet connection (either Wi-Fi or cellular data) to communicate securely with the email APIs."
     )
 )
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelpScreen(
@@ -197,7 +200,7 @@ fun HelpScreen(
                         Text(text = "About Inbox Priorities", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(text = "Version 1.0.0 (MVP)")
-                        Text(text = "Inbox Priorities is a customizable email productivity dashboard that shows unread priority emails from all your email accounts in one easy-to-read screen, allowing you to set priority rules that filter out non-priority emails allowing you to focus on your priority emails first.")
+                        Text(text = "Inbox Priorities allows you to monitor your email account inboxes for priority emails using your customizable email sender/subject priority rules. The Dashboard shows unread email totals, showing priority email totals separately for your configured email accounts. Each email account on the Dashboard can be expanded, showing a preview of each priority email. Clicking an email will open your email client allowing you to read and respond to your priority emails.")
                     }
                 }
             }
