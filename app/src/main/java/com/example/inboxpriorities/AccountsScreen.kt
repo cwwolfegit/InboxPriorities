@@ -1,12 +1,15 @@
-package     com.chuckwolfe.inboxpriorities
+package com.chuckwolfe.inboxpriorities
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,21 +32,15 @@ fun AccountsScreen(
     var accountToEdit by remember { mutableStateOf<EmailAccount?>(null) }
     var accountToDelete by remember { mutableStateOf<EmailAccount?>(null) }
 
+    // State for toggling between free and paid tier simulation
+    var isPaidTier by remember { mutableStateOf(false) }
+
     val maxAccounts = 3
-    val isLimitReached = accounts.size >= maxAccounts
+    val isLimitReached = !isPaidTier && accounts.size >= maxAccounts
 
-    // Dynamic colors for the badge based on limit state
-    val badgeBgColor = if (isLimitReached) {
-        MaterialTheme.colorScheme.errorContainer
-    } else {
-        MaterialTheme.colorScheme.secondaryContainer
-    }
-
-    val badgeTextColor = if (isLimitReached) {
-        MaterialTheme.colorScheme.onErrorContainer
-    } else {
-        MaterialTheme.colorScheme.onSecondaryContainer
-    }
+    // Dynamic colors for the badge based on tier state
+    val badgeBgColor = if (isPaidTier) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer
+    val badgeTextColor = if (isPaidTier) Color(0xFF2E7D32) else Color(0xFF8E0000)
 
     LazyColumn(
         modifier = Modifier
@@ -52,49 +49,89 @@ fun AccountsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text(
-                text = "Accounts",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            // Header Row (Accounts Title + Tier Badge next to it like Dashboard)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Accounts",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
 
-            // Sub-header Row (Badge + Button)
+                    // Interactive Tier Badge Button next to Title
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = badgeBgColor,
+                        modifier = Modifier
+                            .clickable { isPaidTier = !isPaidTier }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (isPaidTier) "Paid / Unlimited Tier" else "Free Tier",
+                            color = badgeTextColor,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Sub-header Row (Connected Count Badge + Stacked Warning Text + Add Button)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = badgeBgColor,
+                    color = if (isPaidTier) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer,
                     shape = MaterialTheme.shapes.extraLarge
                 ) {
                     Text(
-                        text = "${accounts.size} / $maxAccounts Connected",
+                        text = "${accounts.size} Connected",
                         style = MaterialTheme.typography.labelMedium,
-                        color = badgeTextColor,
+                        color = if (isPaidTier) Color(0xFF2E7D32) else Color(0xFF8E0000),
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { showAddDialog = true },
-                        enabled = !isLimitReached
+                if (isLimitReached) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp)
                     ) {
-                        Text(if (isLimitReached) "Limit Reached" else "+ Add Account")
-                    }
-                    if (isLimitReached) {
                         Text(
-                            text = "Free tier limit of $maxAccounts accounts reached.",
+                            text = "Free tier limit of $maxAccounts",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = "accounts reached.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 11.sp
                         )
                     }
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+
+                Button(
+                    onClick = { showAddDialog = true },
+                    enabled = !isLimitReached
+                ) {
+                    Text("+ Add Account")
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -172,10 +209,6 @@ fun AccountsScreen(
 
                                 android.util.Log.d("Debug_Auth", "Successfully retrieved Google account for: $targetEmail")
 
-                                // Request the OAuth Access Token using GoogleAuthUtil on an IO dispatcher
-                                android.util.Log.d("Debug_Auth", "Successfully retrieved Google account for: $targetEmail")
-
-                                // Request the OAuth Access Token via AuthorizationClient (which handles consent prompts automatically)
                                 val authRequest = authHelper.createAuthorizationRequest(targetEmail)
                                 authHelper.authClient.authorize(authRequest)
                                     .addOnSuccessListener { authorizationResult ->
