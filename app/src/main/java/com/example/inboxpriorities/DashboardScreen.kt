@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.graphics.Color
 
 import com.chuckwolfe.inboxpriorities.utils.openEmailInbox
 
@@ -39,6 +40,9 @@ fun DashboardScreen(
     val priorityTodayMap by viewModel.priorityTodayCounts.collectAsState()
     val priorityEmailsByAccount by viewModel.todayPriorityEmailsByAccount.collectAsState()
     var expandedAccounts by remember { mutableStateOf(setOf<String>()) }
+
+    // State for toggling between free and paid tier simulation
+    var isPaidTier by remember { mutableStateOf(false) }
 
     // Calculate aggregate top-level priority counts from the ViewModel maps
     val totalPriorityTodaySum = priorityTodayMap.values.sumOf { it.toIntOrNull() ?: 0 }
@@ -85,7 +89,7 @@ fun DashboardScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- 1. TOP SUMMARY TOTALS ---
+        // --- 1. TOP SUMMARY TOTALS & TIER INDICATOR ---
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -100,11 +104,41 @@ fun DashboardScreen(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.2.sp
                     )
-                    Text(
-                        text = "Dashboard",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Dashboard",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        // Interactive Tier Badge Button
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isPaidTier) {
+                                Color(0xFFE8F5E9) // Soft light green background
+                            } else {
+                                MaterialTheme.colorScheme.errorContainer
+                            },
+                            modifier = Modifier
+                                .clickable { isPaidTier = !isPaidTier }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = if (isPaidTier) "Paid / Unlimited Tier" else "Free Tier",
+                                color = if (isPaidTier) {
+                                    Color(0xFF2E7D32) // Deep forest green text
+                                } else {
+                                    Color(0xFF8E0000) // Deep red text for the free tier warning look
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
                 }
 
                 IconButton(
@@ -465,7 +499,6 @@ fun MetricCard(
         }
     }
 }
-
 
 @Composable
 fun EmailCard(email: Email) {
