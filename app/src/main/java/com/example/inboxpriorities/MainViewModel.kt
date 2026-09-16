@@ -1,4 +1,4 @@
-package     com.chuckwolfe.inboxpriorities
+package com.chuckwolfe.inboxpriorities
 
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import androidx.lifecycle.viewModelScope
@@ -24,6 +24,14 @@ class MainViewModel(
 ) : AndroidViewModel(application) {
 
     // --- State Flows (Declared first so they initialize before the init block) ---
+
+    // Global in-memory tier state for testing paid features without restarting the app
+    private val _isPaidTier = MutableStateFlow(false)
+    val isPaidTier: StateFlow<Boolean> = _isPaidTier.asStateFlow()
+
+    fun toggleTier() {
+        _isPaidTier.value = !_isPaidTier.value
+    }
 
     val rules: StateFlow<List<PriorityRule>> = if (USE_MOCK_SCREENSHOT_DATA) {
         MutableStateFlow(

@@ -32,8 +32,8 @@ fun AccountsScreen(
     var accountToEdit by remember { mutableStateOf<EmailAccount?>(null) }
     var accountToDelete by remember { mutableStateOf<EmailAccount?>(null) }
 
-    // State for toggling between free and paid tier simulation
-    var isPaidTier by remember { mutableStateOf(false) }
+    // Collect paid tier state directly from the ViewModel
+    val isPaidTier by viewModel.isPaidTier.collectAsState()
 
     val maxAccounts = 3
     val isLimitReached = !isPaidTier && accounts.size >= maxAccounts
@@ -70,7 +70,7 @@ fun AccountsScreen(
                         shape = RoundedCornerShape(16.dp),
                         color = badgeBgColor,
                         modifier = Modifier
-                            .clickable { isPaidTier = !isPaidTier }
+                            .clickable { viewModel.toggleTier() }
                             .padding(vertical = 4.dp)
                     ) {
                         Text(

@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RulesScreen(
+    viewModel: MainViewModel,
     rules: List<PriorityRule>,
     ruleError: String?,
     onClearError: () -> Unit,
@@ -25,15 +26,14 @@ fun RulesScreen(
     onUpdateRule: (oldRule: PriorityRule, newRule: PriorityRule) -> Boolean,
     onDeleteRule: (PriorityRule) -> Unit,
     modifier: Modifier = Modifier,
-    isProUser: Boolean = false,
     freeRuleLimit: Int = 3
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var ruleToEdit by remember { mutableStateOf<PriorityRule?>(null) }
     var ruleToDelete by remember { mutableStateOf<PriorityRule?>(null) }
 
-    // State for toggling between free and paid tier simulation (matches Accounts screen behavior)
-    var isPaidTier by remember { mutableStateOf(isProUser) }
+    // Collect paid tier state directly from the ViewModel
+    val isPaidTier by viewModel.isPaidTier.collectAsState()
 
     val activeRulesCount = rules.count { it.isEnabled }
     val totalRulesCount = rules.size
@@ -67,7 +67,7 @@ fun RulesScreen(
                                 shape = RoundedCornerShape(16.dp),
                                 color = badgeBgColor,
                                 modifier = Modifier
-                                    .clickable { isPaidTier = !isPaidTier }
+                                    .clickable { viewModel.toggleTier() }
                                     .padding(vertical = 4.dp)
                             ) {
                                 Text(

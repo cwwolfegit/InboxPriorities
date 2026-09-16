@@ -41,8 +41,8 @@ fun DashboardScreen(
     val priorityEmailsByAccount by viewModel.todayPriorityEmailsByAccount.collectAsState()
     var expandedAccounts by remember { mutableStateOf(setOf<String>()) }
 
-    // State for toggling between free and paid tier simulation
-    var isPaidTier by remember { mutableStateOf(false) }
+    // Collect paid tier state directly from the ViewModel
+    val isPaidTier by viewModel.isPaidTier.collectAsState()
 
     // Calculate aggregate top-level priority counts from the ViewModel maps
     val totalPriorityTodaySum = priorityTodayMap.values.sumOf { it.toIntOrNull() ?: 0 }
@@ -123,7 +123,7 @@ fun DashboardScreen(
                                 MaterialTheme.colorScheme.errorContainer
                             },
                             modifier = Modifier
-                                .clickable { isPaidTier = !isPaidTier }
+                                .clickable { viewModel.toggleTier() }
                                 .padding(vertical = 4.dp)
                         ) {
                             Text(
