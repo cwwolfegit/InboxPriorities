@@ -120,7 +120,9 @@ class OutlookEmailRepository(
                 val gson = GsonBuilder().create()
                 val jsonObject = gson.fromJson(bodyString, JsonObject::class.java)
                 val totalCount = if (jsonObject.has("@odata.count")) jsonObject.get("@odata.count").asInt else 0
-                val hasMore = jsonObject.has("@odata.nextLink")
+
+                // Only show '+' if it exceeds a large threshold (e.g., 200, matching Gmail behavior)
+                val hasMore = totalCount > 200
 
                 Pair(totalCount, hasMore)
             }
@@ -129,7 +131,6 @@ class OutlookEmailRepository(
             Pair(0, false)
         }
     }
-
     override suspend fun getUnreadTodayCount(): Int = withContext(Dispatchers.IO) {
         val token = tokenProvider()
         if (token.isNullOrEmpty()) return@withContext 0
