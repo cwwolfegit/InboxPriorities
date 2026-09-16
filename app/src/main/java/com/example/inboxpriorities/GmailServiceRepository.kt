@@ -21,7 +21,7 @@ class GmailServiceRepository(
 ) : EmailRepository {
 
     override suspend fun fetchEmails(accountId: String): List<Email> {
-        return fetchRecentEmails(10)
+        return fetchRecentEmails(50)
     }
     companion object {
         private const val TAG = "Debug_GmailRepo"
