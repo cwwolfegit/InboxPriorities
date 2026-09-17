@@ -46,6 +46,10 @@ val faqList = listOf(
         answer = "A: The app requests only the read-only or scoped permissions necessary via OAuth to retrieve unread message headers and snippets for your priority dashboard, without allowing the app to delete or alter your emails."
     ),
     FaqItem(
+        question = "Q: Does Inbox Priorities store my account passwords?",
+        answer = "A: No. Your app maintains a lightweight architecture by utilizing your device's native mail clients and system intents directly, meaning your credentials stay securely inside your chosen email apps."
+    ),
+    FaqItem(
         question = "Q: Are my custom rules and app preferences stored securely?",
         answer = "A: Yes, all local custom rules, filters, and dashboard preferences are saved securely in your device's local storage."
     ),
@@ -60,10 +64,6 @@ val faqList = listOf(
     FaqItem(
         question = "Q: How many priority rules can I add?",
         answer = "A: In the free version, you can add one priority rule, with unlimited rules available in the paid version."
-    ),
-    FaqItem(
-        question = "Q: What email providers are supported?",
-        answer = "A: Gmail and Outlook."
     ),
     FaqItem(
         question = "Q: How do I add or remove an email account?",
@@ -83,23 +83,27 @@ val faqList = listOf(
     ),
     FaqItem(
         question = "Q: How do I view my categorized priority emails on the dashboard?",
-        answer = "A: Tap or expand any summary section on your dashboard to view the full list of identified priority emails, along with their headers and snippets."
+        answer = "A: Tap or expand any summary section on your dashboard to view the full list of identified priority emails, along with their headers and snippets.  Tap the envelope to open your native email application."
     ),
     FaqItem(
-        question = "Q: What happens when I tap an email in the expanded account card on the dashboard?",
-        answer = "A: Tapping an email from the account card directly launches your native email application (such as Microsoft Outlook for Outlook accounts or Gmail for Google accounts) straight to your inbox, allowing you to easily view, read, and respond to your messages."
+        question = "Q: What happens when I tap the envelope in the expanded account card on the dashboard?",
+        answer = "A: Tapping the envelope from the account card directly launches your native email application (such as Microsoft Outlook for Outlook accounts or Gmail for Google accounts) straight to your inbox, allowing you to easily view, read, and respond to your messages."
     ),
     FaqItem(
-        question = "Q: Why doesn't clicking an email always open the exact/correct inbox directly?",
-        answer = "A: Inbox Priorities successfully launches the correct email provider application, but Android requires you to select or switch to your specific account inbox within that app."
+        question = "Q: Why doesn't clicking the envelope always open the exact/correct inbox directly?",
+        answer = "A: Inbox Priorities successfully launches the correct email provider application, but Android requires you to select or switch to your specific account inbox within your native email application."
+    ),
+    FaqItem(
+        question = "Q: Why can I still open my inbox using the envelope icon if my account shows a sign-in error?",
+        answer = "A: The envelope icon acts as a direct shortcut to your your native email application. Even if your in-app sync token has expired and requires re-authentication, you can still use the envelope to jump straight into your email client's inbox."
     ),
     FaqItem(
         question = "Q: Can I reply to emails directly inside Inbox Priorities?",
         answer = "A: No. Inbox Priorities is designed as a lightweight, non-invasive dashboard. When you tap an email, it seamlessly hands off control to your native email app so you can manage your messages securely within your trusted email client."
     ),
     FaqItem(
-        question = "Q: Does Inbox Priorities store my account passwords?",
-        answer = "A: No. Your app maintains a lightweight architecture by utilizing your device's native mail clients and system intents directly, meaning your credentials stay securely inside your chosen email apps."
+        question = "Q: What email providers are supported?",
+        answer = "A: Gmail and Outlook."
     ),
     FaqItem(
         question = "Q: Can I use both Gmail and Outlook with Inbox Priorities?",

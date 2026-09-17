@@ -524,22 +524,39 @@ fun EmailCard(email: Email) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = email.sender,
-                    style = MaterialTheme.typography.titleMedium,
+                // Left side: Sender name and email stacked
+                Column(
                     modifier = Modifier.weight(1f)
-                )
-                if (email.priorityLevel != PriorityLevel.NONE) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    PriorityBadge(priorityLevel = email.priorityLevel)
+                ) {
+                    Text(
+                        text = email.sender,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = email.subject, // Or your email address field depending on your data structure
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Right side: Envelope icon and Priority Badge grouped together
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Email,
+                        contentDescription = "Email Icon",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+
+                    if (email.priorityLevel != PriorityLevel.NONE) {
+                        PriorityBadge(priorityLevel = email.priorityLevel)
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = email.subject,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = email.body,
                 style = MaterialTheme.typography.bodySmall,
