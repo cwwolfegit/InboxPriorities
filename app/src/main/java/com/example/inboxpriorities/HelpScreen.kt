@@ -90,6 +90,10 @@ val faqList = listOf(
         answer = "A: Tapping an email from the account card directly launches your native email application (such as Microsoft Outlook for Outlook accounts or Gmail for Google accounts) straight to your inbox, allowing you to easily view, read, and respond to your messages."
     ),
     FaqItem(
+        question = "Q: Why doesn't clicking an email always open the exact/correct inbox directly?",
+        answer = "A: Inbox Priorities successfully launches the correct email provider application, but Android requires you to select or switch to your specific account inbox within that app."
+    ),
+    FaqItem(
         question = "Q: Can I reply to emails directly inside Inbox Priorities?",
         answer = "A: No. Inbox Priorities is designed as a lightweight, non-invasive dashboard. When you tap an email, it seamlessly hands off control to your native email app so you can manage your messages securely within your trusted email client."
     ),

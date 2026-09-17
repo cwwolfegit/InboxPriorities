@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.ui.graphics.Color
 
 import com.chuckwolfe.inboxpriorities.utils.openEmailInbox
@@ -206,7 +207,7 @@ fun DashboardScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            // Target Outlook app if account is Outlook, otherwise default handler
+                            // Always allow opening the email client whether priority exists or not
                             openEmailInbox(context, account.emailAddress)
                         },
                     colors = CardDefaults.cardColors(
@@ -292,7 +293,7 @@ fun DashboardScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = "Sign-in Expired (Tap to fix)",
+                                                text = "Tap to Sign-in!",
                                                 color = MaterialTheme.colorScheme.onErrorContainer,
                                                 style = MaterialTheme.typography.bodyMedium
                                             )
@@ -362,13 +363,20 @@ fun DashboardScreen(
                                     )
                                 }
 
+                                Spacer(modifier = Modifier.width(8.dp))
                                 if (hasPriority) {
-                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = if (isExpanded) "▲" else "▼",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Email,
+                                        contentDescription = "Open Email Inbox",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
