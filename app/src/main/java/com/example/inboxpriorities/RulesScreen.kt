@@ -26,7 +26,7 @@ fun RulesScreen(
     onUpdateRule: (oldRule: PriorityRule, newRule: PriorityRule) -> Boolean,
     onDeleteRule: (PriorityRule) -> Unit,
     modifier: Modifier = Modifier,
-    freeRuleLimit: Int = 3
+    freeRuleLimit: Int = 1
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var ruleToEdit by remember { mutableStateOf<PriorityRule?>(null) }

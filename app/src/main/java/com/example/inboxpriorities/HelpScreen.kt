@@ -55,11 +55,11 @@ val faqList = listOf(
     ),
     FaqItem(
         question = "Q: How many email accounts can I add?",
-        answer = "A: In the free version, up to three email accounts are supported. This limit is removed if you upgrade to the paid version."
+        answer = "A: In the free version, one email account is supported. This limit is removed if you upgrade to the paid version."
     ),
     FaqItem(
         question = "Q: How many priority rules can I add?",
-        answer = "A: In the free version, you can add up to three priority rules, with unlimited rules available in the paid version."
+        answer = "A: In the free version, you can add one priority rule, with unlimited rules available in the paid version."
     ),
     FaqItem(
         question = "Q: What email providers are supported?",
@@ -67,11 +67,11 @@ val faqList = listOf(
     ),
     FaqItem(
         question = "Q: How do I add or remove an email account?",
-        answer = "A: Select \"Accounts\" from the menu. In the free version, if you have not reached the three-account limit, click \"Add Account\" and enter the required details. Use the edit or delete icons to modify or remove an existing account."
+        answer = "A: Select \"Accounts\" from the menu. In the free version, if you have not reached the one-account limit, click \"Add Account\" and enter the required details. Use the edit or delete icons to modify or remove an existing account."
     ),
     FaqItem(
         question = "Q: How do I add or remove a priority rule?",
-        answer = "A: Select \"Rules\" from the menu. In the free version, if you have not reached the three-rule limit, click \"Add Rule\" and enter the required details. Use the edit, delete, or \"active\" switch to modify, remove, or toggle the rule between active and inactive states."
+        answer = "A: Select \"Rules\" from the menu. In the free version, if you have not reached the one-rule limit, click \"Add Rule\" and enter the required details. Use the edit, delete, or \"active\" switch to modify, remove, or toggle the rule between active and inactive states."
     ),
     FaqItem(
         question = "Q: How do priority rules work?",

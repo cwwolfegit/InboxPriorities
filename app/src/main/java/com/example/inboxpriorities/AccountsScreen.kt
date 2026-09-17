@@ -35,7 +35,7 @@ fun AccountsScreen(
     // Collect paid tier state directly from the ViewModel
     val isPaidTier by viewModel.isPaidTier.collectAsState()
 
-    val maxAccounts = 3
+    val maxAccounts = 1
     val isLimitReached = !isPaidTier && accounts.size >= maxAccounts
 
     // Dynamic colors for the badge based on tier state
