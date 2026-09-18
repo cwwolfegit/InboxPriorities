@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +34,7 @@ fun AccountsScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var accountToEdit by remember { mutableStateOf<EmailAccount?>(null) }
     var accountToDelete by remember { mutableStateOf<EmailAccount?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
 
     // Collect paid tier state directly from the ViewModel
     val isPaidTier by viewModel.isPaidTier.collectAsState()
@@ -41,6 +45,18 @@ fun AccountsScreen(
     // Dynamic colors for the badge based on tier state
     val badgeBgColor = if (isPaidTier) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer
     val badgeTextColor = if (isPaidTier) Color(0xFF2E7D32) else Color(0xFF8E0000)
+
+    // Filter accounts based on searchQuery matching nickname or email address
+    val filteredAccounts = remember(accounts, searchQuery) {
+        if (searchQuery.isBlank()) {
+            accounts
+        } else {
+            accounts.filter { account ->
+                account.nickname.contains(searchQuery, ignoreCase = true) ||
+                        account.emailAddress.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -135,6 +151,34 @@ fun AccountsScreen(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
+
+            // Search Bar Component
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                placeholder = { Text("Search accounts...") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search Icon"
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear Search"
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
         }
 
         if (accounts.isEmpty()) {
@@ -162,8 +206,23 @@ fun AccountsScreen(
                     }
                 }
             }
+        } else if (filteredAccounts.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No accounts match \"$searchQuery\"",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         } else {
-            items(accounts, key = { it.id }) { account ->
+            items(filteredAccounts, key = { it.id }) { account ->
                 AccountManagementCard(
                     account = account,
                     onEdit = { accountToEdit = account },

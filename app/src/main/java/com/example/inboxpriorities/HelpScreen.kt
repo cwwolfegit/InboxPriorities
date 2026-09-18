@@ -1,30 +1,25 @@
-package     com.chuckwolfe.inboxpriorities
+package com.chuckwolfe.inboxpriorities
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -114,12 +109,26 @@ val faqList = listOf(
         answer = "A: The app requires Android 8.0 (API level 26) or higher, a standard physical smartphone, a minimum of 2GB of RAM, and an active internet connection (either Wi-Fi or cellular data) to communicate securely with the email APIs."
     )
 )
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelpScreen(
     onContactSupportClick: () -> Unit
 ) {
     var isFaqExpanded by remember { mutableStateOf(false) }
+    var faqSearchQuery by remember { mutableStateOf("") }
+
+    // Filter FAQ list based on search query matching question or answer
+    val filteredFaqList = remember(faqSearchQuery) {
+        if (faqSearchQuery.isBlank()) {
+            faqList
+        } else {
+            faqList.filter {
+                it.question.contains(faqSearchQuery, ignoreCase = true) ||
+                        it.answer.contains(faqSearchQuery, ignoreCase = true)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -153,25 +162,72 @@ fun HelpScreen(
                                 contentDescription = "Toggle FAQ"
                             )
                         }
+
                         if (isFaqExpanded) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            faqList.forEach { item ->
-                                Column(
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Search bar inside the expanded FAQ card
+                            OutlinedTextField(
+                                value = faqSearchQuery,
+                                onValueChange = { faqSearchQuery = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                                placeholder = { Text("Search FAQ...") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search FAQ Icon"
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (faqSearchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { faqSearchQuery = "" }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "Clear Search"
+                                            )
+                                        }
+                                    }
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            if (filteredFaqList.isEmpty()) {
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 6.dp)
+                                        .padding(vertical = 24.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = item.question,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = item.answer,
+                                        text = "No FAQ matches \"$faqSearchQuery\"",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(start = 16.dp)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                }
+                            } else {
+                                filteredFaqList.forEach { item ->
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = item.question,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = item.answer,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.padding(start = 16.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

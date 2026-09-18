@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +34,7 @@ fun RulesScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var ruleToEdit by remember { mutableStateOf<PriorityRule?>(null) }
     var ruleToDelete by remember { mutableStateOf<PriorityRule?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
 
     // Collect paid tier state directly from the ViewModel
     val isPaidTier by viewModel.isPaidTier.collectAsState()
@@ -42,6 +46,18 @@ fun RulesScreen(
     // Dynamic colors for the main tier badge matching Accounts and Dashboard
     val badgeBgColor = if (isPaidTier) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer
     val badgeTextColor = if (isPaidTier) Color(0xFF2E7D32) else Color(0xFF8E0000)
+
+    // Filter rules based on searchQuery matching rule name or match pattern
+    val filteredRules = remember(rules, searchQuery) {
+        if (searchQuery.isBlank()) {
+            rules
+        } else {
+            rules.filter { rule ->
+                rule.name.contains(searchQuery, ignoreCase = true) ||
+                        rule.matchPattern.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -153,6 +169,34 @@ fun RulesScreen(
                 }
             }
 
+            // Search Bar Component
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                placeholder = { Text("Search rules...") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search Icon"
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear Search"
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
             if (rules.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -176,10 +220,23 @@ fun RulesScreen(
                         )
                     }
                 }
+            } else if (filteredRules.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No rules match \"$searchQuery\"",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             } else {
-                // Sort rules: Enabled first, then HIGH -> MEDIUM -> LOW -> NONE
-                val sortedRules = remember(rules) {
-                    rules.sortedWith(
+                // Sort filtered rules: Enabled first, then HIGH -> MEDIUM -> LOW -> NONE
+                val sortedRules = remember(filteredRules) {
+                    filteredRules.sortedWith(
                         compareByDescending<PriorityRule> { it.isEnabled }
                             .thenByDescending { rule ->
                                 when (rule.priorityLevel) {

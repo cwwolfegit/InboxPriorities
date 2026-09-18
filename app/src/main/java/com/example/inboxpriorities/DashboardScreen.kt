@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.ui.graphics.Color
 
 import com.chuckwolfe.inboxpriorities.utils.openEmailInbox
@@ -41,6 +43,7 @@ fun DashboardScreen(
     val priorityTodayMap by viewModel.priorityTodayCounts.collectAsState()
     val priorityEmailsByAccount by viewModel.todayPriorityEmailsByAccount.collectAsState()
     var expandedAccounts by remember { mutableStateOf(setOf<String>()) }
+    var searchQuery by remember { mutableStateOf("") }
 
     // Collect paid tier state directly from the ViewModel
     val isPaidTier by viewModel.isPaidTier.collectAsState()
@@ -81,7 +84,19 @@ fun DashboardScreen(
         }
     }
 
-    // 2. Dynamic top summary calculations
+    // 2. Filter accounts based on searchQuery matching nickname or email address
+    val filteredAccounts = remember(accounts, searchQuery) {
+        if (searchQuery.isBlank()) {
+            accounts
+        } else {
+            accounts.filter { account ->
+                account.nickname.contains(searchQuery, ignoreCase = true) ||
+                        account.emailAddress.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
+    // 3. Dynamic top summary calculations
     val hasActiveRules = rules.any { it.isEnabled }
 
     LazyColumn(
@@ -164,10 +179,38 @@ fun DashboardScreen(
         }
         // --- 2. ACCOUNTS BREAKDOWN & INLINE ACCORDIONS ---
         item {
-            Text(
-                text = "Accounts",
-                style = MaterialTheme.typography.titleLarge
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Accounts",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                // Search Bar Component
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search accounts...") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search Icon"
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear Search"
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
         }
 
         if (accounts.isEmpty()) {
@@ -191,8 +234,23 @@ fun DashboardScreen(
                     )
                 }
             }
+        } else if (filteredAccounts.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No accounts match \"$searchQuery\"",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         } else {
-            items(accounts, key = { it.id }) { account ->
+            items(filteredAccounts, key = { it.id }) { account ->
                 val accountEmails = priorityEmailsByAccount[account.emailAddress] ?: emptyList()
                 val isExpanded = expandedAccounts.contains(account.emailAddress)
                 val accountUnreadToday = unreadTodayCounts[account.emailAddress] ?: "0"
