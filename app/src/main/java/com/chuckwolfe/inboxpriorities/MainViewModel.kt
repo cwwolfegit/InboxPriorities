@@ -18,6 +18,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
 
+import android.util.Log
+import com.chuckwolfe.inboxpriorities.ContactCache.isContact
+
 class MainViewModel(
     application: Application,
     private val repository: RulesRepository
@@ -31,8 +34,10 @@ class MainViewModel(
 
     fun toggleTier() {
         _isPaidTier.value = !_isPaidTier.value
+        // Force a reload so emails re-evaluate with the new tier status immediately
+        hasLoadedAccountsOnStartup = false
+        loadAllDefinedAccounts(getApplication(), force = true)
     }
-
     val rules: StateFlow<List<PriorityRule>> = if (USE_MOCK_SCREENSHOT_DATA) {
         MutableStateFlow(
             listOf(
@@ -458,6 +463,9 @@ class MainViewModel(
                                         sortedEmails = emptyList()
                                     )
                                 } else {
+                                    // Load device contacts into cache so @Contacts rules can match successfully
+                                    ContactCache.loadDeviceContacts(context, account.emailAddress)
+
                                     val applicableRules = rules.value.filter { rule ->
                                         android.util.Log.d("Debug_MainViewModel", "Rule '${rule.name}' targetAccountId: ${rule.targetAccountId}, current account.id: ${account.id}")
                                         rule.targetAccountId == null || rule.targetAccountId == account.id
@@ -475,8 +483,17 @@ class MainViewModel(
                                     var todayPriorityCount = 0
                                     val accountPriorityEmails = mutableListOf<Email>()
 
+                                    Log.d("isPaidTier_MainViewModel", "Evaluating with isPaidTier.value: ${isPaidTier.value}")
                                     for (email in recentEmails) {
-                                        val (level, _) = PriorityEvaluator.evaluatePriority(email.sender, email.subject, applicableRules)
+                                        val (level, _) = PriorityEvaluator.evaluatePriority(
+                                            sender = email.sender,
+                                            subject = email.subject,
+                                            rules = applicableRules,
+                                            isPaidUser = isPaidTier.value,
+                                            isContact = { cleanedEmail ->
+                                                isContact(account.emailAddress, cleanedEmail)
+                                            }
+                                        )
 
                                         if (level != PriorityLevel.NONE) {
                                             totalPriorityCount++

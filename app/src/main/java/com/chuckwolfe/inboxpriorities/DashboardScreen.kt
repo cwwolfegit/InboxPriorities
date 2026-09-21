@@ -1,5 +1,10 @@
 package com.chuckwolfe.inboxpriorities
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +25,8 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.ui.graphics.Color
+import androidx.core.content.ContextCompat
+import com.chuckwolfe.inboxpriorities.ContactCache.isContact
 
 import com.chuckwolfe.inboxpriorities.utils.openEmailInbox
 
@@ -48,6 +55,28 @@ fun DashboardScreen(
     // Collect paid tier state directly from the ViewModel
     val isPaidTier by viewModel.isPaidTier.collectAsState()
 
+    // Runtime Permission Launcher for reading contacts
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d("Permissions", "READ_CONTACTS permission granted")
+        } else {
+            Log.w("Permissions", "READ_CONTACTS permission denied")
+        }
+    }
+
+    // Check and request READ_CONTACTS permission when the Dashboard loads
+    LaunchedEffect(Unit) {
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_CONTACTS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        }
+    }
+
     // Calculate aggregate top-level priority counts from the ViewModel maps
     val totalPriorityTodaySum = priorityTodayMap.values.sumOf { it.toIntOrNull() ?: 0 }
     val totalPriorityTotalSum = priorityUnreadMap.values.sumOf { it.toIntOrNull() ?: 0 }
@@ -70,14 +99,21 @@ fun DashboardScreen(
     }
 
     // 1. Evaluate all emails against active rules
-    val allEvaluatedEmails = remember(rules, emails) {
+    val allEvaluatedEmails = remember(rules, emails, accounts) {
         val activeRules = rules.filter { it.isEnabled }
 
+        Log.d("isPaidTier_Dashboard", "Evaluating with isPaidTier: $isPaidTier")
         emails.map { email ->
+            // Find account if needed or fall back cleanly
+            val defaultAccountEmail = accounts.firstOrNull()?.emailAddress ?: ""
             val calculatedPriority = PriorityEvaluator.evaluatePriority(
                 sender = email.sender,
                 subject = email.subject,
-                rules = activeRules
+                rules = activeRules,
+                isPaidUser = isPaidTier,
+                isContact = { cleanedEmail ->
+                    isContact(defaultAccountEmail, cleanedEmail)
+                }
             ).first
 
             email.copy(priorityLevel = calculatedPriority)
@@ -591,7 +627,7 @@ fun EmailCard(email: Email) {
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = email.subject, // Or your email address field depending on your data structure
+                        text = email.subject,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
