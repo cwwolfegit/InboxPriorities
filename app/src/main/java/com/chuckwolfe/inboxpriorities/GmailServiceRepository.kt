@@ -1,4 +1,4 @@
-package     com.chuckwolfe.inboxpriorities
+package com.chuckwolfe.inboxpriorities
 
 import android.content.Context
 import android.util.Log
@@ -45,6 +45,61 @@ class GmailServiceRepository(
         )
             .setApplicationName("Inbox Priorities")
             .build()
+    }
+
+    suspend fun fetchContacts(): List<String> = withContext(Dispatchers.IO) {
+        val contactEmails = mutableListOf<String>()
+        Log.d(TAG, "fetchContacts called for $emailAddress")
+
+        val currentToken = tokenProvider()
+        if (currentToken.isNullOrEmpty()) {
+            Log.e(TAG, "Token provider returned a null or empty token for $emailAddress")
+            return@withContext emptyList()
+        }
+
+        val credential = Credential(
+            BearerToken.authorizationHeaderAccessMethod()
+        ).setAccessToken(currentToken)
+
+        try {
+            val requestFactory = NetHttpTransport().createRequestFactory(credential)
+            var pageToken: String? = null
+
+            do {
+                var urlStr = "https://people.googleapis.com/v1/people/me/connections?personFields=emailAddresses&pageSize=100"
+                if (!pageToken.isNullOrEmpty()) {
+                    urlStr += "&pageToken=$pageToken"
+                }
+
+                val request = requestFactory.buildGetRequest(com.google.api.client.http.GenericUrl(urlStr))
+                val jsonString = request.execute().parseAsString()
+
+                val gson = com.google.gson.Gson()
+                val map = gson.fromJson(jsonString, Map::class.java)
+
+                @Suppress("UNCHECKED_CAST")
+                val connections = map["connections"] as? List<Map<String, Any>> ?: emptyList()
+
+                for (person in connections) {
+                    @Suppress("UNCHECKED_CAST")
+                    val emails = person["emailAddresses"] as? List<Map<String, Any>> ?: continue
+                    for (emailObj in emails) {
+                        val email = emailObj["value"] as? String
+                        email?.let {
+                            contactEmails.add(it.trim().lowercase())
+                        }
+                    }
+                }
+
+                pageToken = map["nextPageToken"] as? String
+            } while (!pageToken.isNullOrEmpty())
+
+            Log.d(TAG, "Successfully fetched ${contactEmails.size} contact emails.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception in fetchContacts for $emailAddress: ${e.message}", e)
+        }
+
+        return@withContext contactEmails
     }
 
     suspend fun fetchRecentEmails(maxResults: Long = 10): List<Email> = withContext(Dispatchers.IO) {

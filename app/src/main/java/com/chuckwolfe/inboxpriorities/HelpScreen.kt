@@ -107,9 +107,16 @@ val faqList = listOf(
     FaqItem(
         question = "Q: What are the minimum system requirements to run Inbox Priorities?",
         answer = "A: The app requires Android 8.0 (API level 26) or higher, a standard physical smartphone, a minimum of 2GB of RAM, and an active internet connection (either Wi-Fi or cellular data) to communicate securely with the email APIs."
+    ),
+    FaqItem(
+        question = "Q: Why don't my app unread counts match my main web inbox count?",
+        answer = "A: Inbox Priorities focuses strictly on your Primary inbox tab (category:primary) to filter out promotional and social clutter. Your main web inbox displays an aggregate count across all tabs, which usually results in a higher total count. To query your emails like Inbox Priorities, search your emails using this filter: label:unread category:primary"
+    ),
+    FaqItem(
+        question = "Q: What does the app's unread count actually measure?",
+        answer = "A: It tracks unread threads and messages located specifically in your Primary inbox so you can focus on direct conversations and important emails without the noise."
     )
 )
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelpScreen(

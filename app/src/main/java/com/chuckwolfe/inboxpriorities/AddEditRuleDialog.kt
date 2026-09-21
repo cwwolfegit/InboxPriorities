@@ -1,10 +1,11 @@
-package     com.chuckwolfe.inboxpriorities
+package com.chuckwolfe.inboxpriorities
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,18 +73,41 @@ fun AddEditRuleDialog(
                     text = "Priority Level",
                     style = MaterialTheme.typography.labelLarge
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PriorityLevel.entries.filter { it != PriorityLevel.NONE }.forEach { level ->
-                        FilterChip(
-                            selected = selectedPriority == level,
-                            onClick = { selectedPriority = level },
-                            label = { Text(level.name) }
-                        )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Split PriorityLevel entries into rows of 2
+                    PriorityLevel.entries.chunked(2).forEach { rowLevels ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowLevels.forEach { level ->
+                                FilterChip(
+                                    selected = selectedPriority == level,
+                                    onClick = { selectedPriority = level },
+                                    label = {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(text = level.name)
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            // If a row has an odd number of items, add an empty spacer to keep grid balanced
+                            if (rowLevels.size < 2) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
                     }
                 }
             }
         },
-                confirmButton = {
+        confirmButton = {
             TextButton(
                 enabled = name.isNotBlank() && matchPattern.isNotBlank(),
                 onClick = {

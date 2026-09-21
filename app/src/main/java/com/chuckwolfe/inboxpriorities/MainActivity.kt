@@ -204,4 +204,22 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    // Inside your MainViewModel or Dashboard refresh action:
+    suspend fun refreshContactsIfNeeded(
+        accountEmail: String,
+        rulesRepository: RulesRepository,
+        gmailRepo: GmailServiceRepository,
+        isPaidUser: Boolean
+    ) {
+        // 1. Evaluate the three criteria:
+        //    - Paid tier active
+        //    - Active @Contacts rule exists with priority != NONE
+        val hasValidContactsRule = rulesRepository.hasActiveContactsRule()
+
+        if (isPaidUser && hasValidContactsRule) {
+            // 2. Fetch and populate the in-memory cache
+            val contacts = gmailRepo.fetchContacts()
+            ContactCache.storeContacts(accountEmail, contacts)
+        }
+    }
 }

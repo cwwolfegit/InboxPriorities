@@ -26,7 +26,7 @@ object PriorityEvaluator {
 
         // 2. If no standard rule matched and user is on the paid tier, check for an active @Contacts rule
         if (isPaidUser) {
-            val contactsRule = rules.firstOrNull { it.isEnabled && it.name == "@Contacts" }
+            val contactsRule = rules.firstOrNull { it.isEnabled && it.priorityLevel != PriorityLevel.NONE && it.name == "@Contacts" }
             if (contactsRule != null) {
                 if (isContact(sender)) {
                     return Pair(contactsRule.priorityLevel, contactsRule.name)

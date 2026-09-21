@@ -1,5 +1,9 @@
 package com.chuckwolfe.inboxpriorities
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,6 +39,39 @@ fun AccountsScreen(
     var accountToEdit by remember { mutableStateOf<EmailAccount?>(null) }
     var accountToDelete by remember { mutableStateOf<EmailAccount?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+
+    // Temporary storage for pending authorization account details across the consent flow
+    var pendingEmail by remember { mutableStateOf("") }
+    var pendingNickname by remember { mutableStateOf("") }
+    var pendingProvider by remember { mutableStateOf(AccountProvider.GMAIL) }
+
+    // Activity result launcher for handling Google OAuth Consent Resolution
+    val resolutionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            android.util.Log.d("Debug_Auth", "Consent resolution flow returned RESULT_OK. Extracting authorization result...")
+            try {
+                val authorizationResult = authHelper.authClient.getAuthorizationResultFromIntent(result.data!!)
+                val accessToken = authorizationResult.accessToken
+
+                if (!accessToken.isNullOrEmpty()) {
+                    android.util.Log.d("Debug_Auth", "Successfully obtained Gmail OAuth Access Token post-resolution")
+                    viewModel.cacheGoogleToken(pendingEmail, accessToken)
+
+                    val finalNickname = pendingNickname.ifBlank { pendingEmail }
+                    onAddAccount(pendingEmail, finalNickname, pendingProvider)
+                    viewModel.loadAllDefinedAccounts(context)
+                } else {
+                    android.util.Log.e("Debug_Auth", "Post-resolution authorization result still has null/empty access token")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("Debug_Auth", "Failed to retrieve authorization result from intent after resolution", e)
+            }
+        } else {
+            android.util.Log.d("Debug_Auth", "User cancelled or failed consent resolution flow.")
+        }
+    }
 
     // Collect paid tier state directly from the ViewModel
     val isPaidTier by viewModel.isPaidTier.collectAsState()
@@ -268,21 +305,38 @@ fun AccountsScreen(
 
                                 android.util.Log.d("Debug_Auth", "Successfully retrieved Google account for: $targetEmail")
 
+                                // Store pending variables in case consent resolution is required
+                                pendingEmail = targetEmail
+                                pendingNickname = targetNickname
+                                pendingProvider = provider
+
                                 val authRequest = authHelper.createAuthorizationRequest(targetEmail)
                                 authHelper.authClient.authorize(authRequest)
                                     .addOnSuccessListener { authorizationResult ->
                                         android.util.Log.d("Debug_Auth", "Authorization result received successfully!")
-                                        val accessToken = authorizationResult.accessToken
 
-                                        if (!accessToken.isNullOrEmpty()) {
-                                            android.util.Log.d("Debug_Auth", "Successfully obtained Gmail OAuth Access Token")
-                                            viewModel.cacheGoogleToken(targetEmail, accessToken)
-
-                                            val finalNickname = targetNickname.ifBlank { targetEmail }
-                                            onAddAccount(targetEmail, finalNickname, provider)
-                                            viewModel.loadAllDefinedAccounts(context)
+                                        if (authorizationResult.hasResolution() && authorizationResult.pendingIntent != null) {
+                                            android.util.Log.d("Debug_Auth", "Consent resolution required. Launching resolution intent...")
+                                            try {
+                                                val intentSenderRequest = IntentSenderRequest.Builder(
+                                                    authorizationResult.pendingIntent!!.intentSender
+                                                ).build()
+                                                resolutionLauncher.launch(intentSenderRequest)
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("Debug_Auth", "Failed to launch resolution intent", e)
+                                            }
                                         } else {
-                                            android.util.Log.e("Debug_Auth", "Authorization succeeded but access token was null/empty")
+                                            val accessToken = authorizationResult.accessToken
+                                            if (!accessToken.isNullOrEmpty()) {
+                                                android.util.Log.d("Debug_Auth", "Successfully obtained Gmail OAuth Access Token directly")
+                                                viewModel.cacheGoogleToken(targetEmail, accessToken)
+
+                                                val finalNickname = targetNickname.ifBlank { targetEmail }
+                                                onAddAccount(targetEmail, finalNickname, provider)
+                                                viewModel.loadAllDefinedAccounts(context)
+                                            } else {
+                                                android.util.Log.e("Debug_Auth", "Authorization succeeded but access token was null/empty and no resolution was provided")
+                                            }
                                         }
                                     }
                                     .addOnFailureListener { e ->
@@ -291,22 +345,17 @@ fun AccountsScreen(
                             } else {
                                 android.util.Log.d("Debug_Auth", "Credential type mismatch or not a Google ID token credential.")
                             }
-                        }
-
-                        if (targetEmail.isNotBlank()) {
-                            val finalNickname = targetNickname.ifBlank { targetEmail }
-                            onAddAccount(targetEmail, finalNickname, provider)
-                            viewModel.loadAllDefinedAccounts(context)
+                        } else {
+                            // Non-Gmail providers
+                            if (targetEmail.isNotBlank()) {
+                                val finalNickname = targetNickname.ifBlank { targetEmail }
+                                onAddAccount(targetEmail, finalNickname, provider)
+                                viewModel.loadAllDefinedAccounts(context)
+                            }
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
                         android.util.Log.e("Debug_Auth", "Credential Manager failed with exception: ${e.localizedMessage}", e)
-
-                        if (email.isNotBlank()) {
-                            val finalNickname = nickname.ifBlank { email }
-                            onAddAccount(email, finalNickname, provider)
-                            viewModel.cacheSession(email, "fallback_token")
-                        }
                     }
                 }
             }

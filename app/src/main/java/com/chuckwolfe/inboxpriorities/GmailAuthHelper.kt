@@ -27,12 +27,13 @@ class GoogleAuthHelper(val context: Context) {
             .build()
     }
 
-    // Request an OAuth Access Token for reading Gmail
+    // Request OAuth Access Tokens for reading Gmail and Contacts
     fun createAuthorizationRequest(email: String): AuthorizationRequest {
         val gmailScope = Scope("https://www.googleapis.com/auth/gmail.readonly")
+        val contactsScope = Scope("https://www.googleapis.com/auth/contacts.readonly")
         val account = android.accounts.Account(email, "com.google")
         return AuthorizationRequest.Builder()
-            .setRequestedScopes(listOf(gmailScope))
+            .setRequestedScopes(listOf(gmailScope, contactsScope))
             .setAccount(account)
             .build()
     }

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
+import kotlinx.coroutines.flow.first
 
 // Extension property to initialize DataStore instance
 private val Context.dataStore by preferencesDataStore(name = "inbox_priorities_prefs")
@@ -67,6 +68,16 @@ class RulesRepository(private val context: Context) {
         val jsonString = json.encodeToString(accounts)
         context.dataStore.edit { preferences ->
             preferences[ACCOUNTS_KEY] = jsonString
+        }
+    }
+    // Check if an active, non-NONE @Contacts rule exists
+    suspend fun hasActiveContactsRule(): Boolean {
+        val rules = rulesFlow.first()
+        return rules.any { rule ->
+            rule.isEnabled &&
+                    rule.priorityLevel != PriorityLevel.NONE &&
+                    (rule.matchPattern.contains("@Contacts", ignoreCase = true) ||
+                            rule.name.contains("@Contacts", ignoreCase = true))
         }
     }
 
