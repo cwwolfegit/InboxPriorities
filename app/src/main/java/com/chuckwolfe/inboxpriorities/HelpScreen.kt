@@ -115,6 +115,20 @@ val faqList = listOf(
     FaqItem(
         question = "Q: What does the app's unread count actually measure?",
         answer = "A: It tracks unread threads and messages located specifically in your Primary inbox so you can focus on direct conversations and important emails without the noise."
+    ),
+    FaqItem(
+        question = "Q: Can I use my Gmail and Outlook contacts to prioritize emails?",
+        answer = "A: Yes, the paid tier allows you to do this by adding a special priority rule using \"@Contacts\" as the rule name. Any email address found in your contacts list will be prioritized. You can override the \"@Contacts\" priority by setting up specific priority rules for specific email addresses."
+    ),
+    FaqItem(
+        question = "Q: How does Inbox Priorities recognize my contacts?",
+        answer = "A: Inbox Priorities evaluates rules against your Android device's central address book (ContactsContract)."
+    ),
+    FaqItem(
+        question = "Q: Do I need to sync my Gmail and Outlook contacts to my phone?",
+        answer = "A: Yes. Because the app reads from your device's native address book, your contacts need to be synced down to your phone's storage:\n\n" +
+                 "• Google Contacts: Usually syncs automatically with your Android device login.\n\n" +
+                 "• Outlook Contacts: If you use the Microsoft Outlook app, you can ensure your contacts are visible to the device by opening Outlook, going to your account settings, and turning Sync Contacts ON. Alternatively, you can add your Outlook account directly under your Android device's Settings > Passwords & accounts and ensure contact synchronization is enabled."
     )
 )
 @OptIn(ExperimentalMaterial3Api::class)
