@@ -1,5 +1,6 @@
 package com.chuckwolfe.inboxpriorities
 
+import android.app.Activity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,6 +23,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun RulesScreen(
     viewModel: MainViewModel,
+    billingViewModel: BillingViewModel,
     rules: List<PriorityRule>,
     ruleError: String?,
     onClearError: () -> Unit,
@@ -31,21 +34,25 @@ fun RulesScreen(
     modifier: Modifier = Modifier,
     freeRuleLimit: Int = 1
 ) {
+    val context = LocalContext.current
+    val activity = context as? Activity
+
     var showAddDialog by remember { mutableStateOf(false) }
     var ruleToEdit by remember { mutableStateOf<PriorityRule?>(null) }
     var ruleToDelete by remember { mutableStateOf<PriorityRule?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
-    // Collect paid tier state directly from the ViewModel
-    val isPaidTier by viewModel.isPaidTier.collectAsState()
+    // Collect Pro status and price from the BillingViewModel
+    val isPro by billingViewModel.isProUnlocked.collectAsState()
+    val price by billingViewModel.productPrice.collectAsState()
 
     val activeRulesCount = rules.count { it.isEnabled }
     val totalRulesCount = rules.size
-    val isLimitReached = !isPaidTier && totalRulesCount >= freeRuleLimit
+    val isLimitReached = !isPro && totalRulesCount >= freeRuleLimit
 
     // Dynamic colors for the main tier badge matching Accounts and Dashboard
-    val badgeBgColor = if (isPaidTier) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer
-    val badgeTextColor = if (isPaidTier) Color(0xFF2E7D32) else Color(0xFF8E0000)
+    val badgeBgColor = if (isPro) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer
+    val badgeTextColor = if (isPro) Color(0xFF2E7D32) else Color(0xFF8E0000)
 
     // Filter rules based on searchQuery matching rule name or match pattern
     val filteredRules = remember(rules, searchQuery) {
@@ -83,11 +90,17 @@ fun RulesScreen(
                                 shape = RoundedCornerShape(16.dp),
                                 color = badgeBgColor,
                                 modifier = Modifier
-                                    .clickable { viewModel.toggleTier() }
+                                    .then(
+                                        if (!isPro && activity != null) {
+                                            Modifier.clickable { billingViewModel.buyPro(activity) }
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
                                     .padding(vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = if (isPaidTier) "Paid / Unlimited Tier" else "Free Tier",
+                                    text = if (isPro) "PRO Tier" else "Free Tier (Unlock Pro - $price)",
                                     color = badgeTextColor,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
@@ -116,14 +129,14 @@ fun RulesScreen(
             ) {
                 // Active Count Badge
                 Surface(
-                    color = if (isPaidTier) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer,
+                    color = if (isPro) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer,
                     shape = MaterialTheme.shapes.extraLarge
                 ) {
                     Text(
                         text = "$activeRulesCount / $totalRulesCount Active",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (isPaidTier) Color(0xFF2E7D32) else Color(0xFF8E0000),
+                        color = if (isPro) Color(0xFF2E7D32) else Color(0xFF8E0000),
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }

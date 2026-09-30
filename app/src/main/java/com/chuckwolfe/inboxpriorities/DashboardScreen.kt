@@ -30,11 +30,17 @@ import com.chuckwolfe.inboxpriorities.ContactCache.isContact
 
 import com.chuckwolfe.inboxpriorities.utils.openEmailInbox
 
+import android.app.Activity
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 enum class EmailFilterTab { TODAY, TOTAL }
 
 @Composable
 fun DashboardScreen(
     viewModel: MainViewModel,
+    billingViewModel: BillingViewModel = viewModel(),
     emails: List<Email>,
     rules: List<PriorityRule>,
     accounts: List<EmailAccount>,
@@ -52,8 +58,10 @@ fun DashboardScreen(
     var expandedAccounts by remember { mutableStateOf(setOf<String>()) }
     var searchQuery by remember { mutableStateOf("") }
 
-    // Collect paid tier state directly from the ViewModel
-    val isPaidTier by viewModel.isPaidTier.collectAsState()
+// Collect Pro status and price from the BillingViewModel
+    val isPro by billingViewModel.isProUnlocked.collectAsState()
+    val price by billingViewModel.productPrice.collectAsState()
+    val activity = LocalContext.current as? Activity
 
     // Runtime Permission Launcher for reading contacts
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -102,7 +110,7 @@ fun DashboardScreen(
     val allEvaluatedEmails = remember(rules, emails, accounts) {
         val activeRules = rules.filter { it.isEnabled }
 
-        Log.d("isPaidTier_Dashboard", "Evaluating with isPaidTier: $isPaidTier")
+        Log.d("isPaidTier_Dashboard", "Evaluating with isPaidTier: $isPro")
         emails.map { email ->
             // Find account if needed or fall back cleanly
             val defaultAccountEmail = accounts.firstOrNull()?.emailAddress ?: ""
@@ -110,7 +118,7 @@ fun DashboardScreen(
                 sender = email.sender,
                 subject = email.subject,
                 rules = activeRules,
-                isPaidUser = isPaidTier,
+                isPaidUser = isPro,
                 isContact = { cleanedEmail ->
                     isContact(defaultAccountEmail, cleanedEmail)
                 }
@@ -169,21 +177,27 @@ fun DashboardScreen(
                         // Interactive Tier Badge Button
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isPaidTier) {
+                            color = if (isPro) {
                                 Color(0xFFE8F5E9) // Soft light green background
                             } else {
                                 MaterialTheme.colorScheme.errorContainer
                             },
                             modifier = Modifier
-                                .clickable { viewModel.toggleTier() }
+                                .then(
+                                    if (!isPro && activity != null) {
+                                        Modifier.clickable { billingViewModel.buyPro(activity) }
+                                    } else {
+                                        Modifier
+                                    }
+                                )
                                 .padding(vertical = 4.dp)
                         ) {
                             Text(
-                                text = if (isPaidTier) "Paid / Unlimited Tier" else "Free Tier",
-                                color = if (isPaidTier) {
+                                text = if (isPro) "PRO Tier" else "Free Tier (Unlock Pro - $price)",
+                                color = if (isPro) {
                                     Color(0xFF2E7D32) // Deep forest green text
                                 } else {
-                                    Color(0xFF8E0000) // Deep red text for the free tier warning look
+                                    Color(0xFF8E0000) // Deep red text
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,

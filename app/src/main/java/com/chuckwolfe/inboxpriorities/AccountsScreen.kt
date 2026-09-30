@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AccountsScreen(
     viewModel: MainViewModel,
+    billingViewModel: BillingViewModel,
     accounts: List<EmailAccount>,
     onAddAccount: (email: String, nickname: String, provider: AccountProvider) -> Unit,
     onUpdateAccount: (oldAccount: EmailAccount, updatedAccount: EmailAccount) -> Unit,
@@ -44,6 +45,11 @@ fun AccountsScreen(
     var pendingEmail by remember { mutableStateOf("") }
     var pendingNickname by remember { mutableStateOf("") }
     var pendingProvider by remember { mutableStateOf(AccountProvider.GMAIL) }
+
+    // Collect Pro status and price from the BillingViewModel
+    val isPro by billingViewModel.isProUnlocked.collectAsState()
+    val price by billingViewModel.productPrice.collectAsState()
+    val activity = LocalContext.current as? Activity
 
     // Activity result launcher for handling Google OAuth Consent Resolution
     val resolutionLauncher = rememberLauncherForActivityResult(
@@ -121,14 +127,28 @@ fun AccountsScreen(
                     // Interactive Tier Badge Button next to Title
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = badgeBgColor,
+                        color = if (isPro) {
+                            Color(0xFFE8F5E9) // Soft light green background
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        },
                         modifier = Modifier
-                            .clickable { viewModel.toggleTier() }
+                            .then(
+                                if (!isPro && activity != null) {
+                                    Modifier.clickable { billingViewModel.buyPro(activity) }
+                                } else {
+                                    Modifier
+                                }
+                            )
                             .padding(vertical = 4.dp)
                     ) {
                         Text(
-                            text = if (isPaidTier) "Paid / Unlimited Tier" else "Free Tier",
-                            color = badgeTextColor,
+                            text = if (isPro) "PRO Tier" else "Free Tier (Unlock Pro - $price)",
+                            color = if (isPro) {
+                                Color(0xFF2E7D32) // Deep forest green text
+                            } else {
+                                Color(0xFF8E0000) // Deep red text
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)

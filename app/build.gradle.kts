@@ -91,4 +91,7 @@ dependencies {
 
     implementation("androidx.browser:browser:1.8.0")
 
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0") // (or match whatever lifecycle version your project uses)
+
 }

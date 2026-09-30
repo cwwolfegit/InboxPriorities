@@ -1,4 +1,4 @@
-package     com.chuckwolfe.inboxpriorities
+package com.chuckwolfe.inboxpriorities
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import     com.chuckwolfe.inboxpriorities.ui.theme.InboxPrioritiesTheme
+import com.chuckwolfe.inboxpriorities.ui.theme.InboxPrioritiesTheme
 
 import android.content.Intent
 import android.net.Uri
@@ -44,14 +44,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Initialize the BillingViewModel using the activity's ViewModel provider
+    private val billingViewModel: BillingViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         println("DEBUG_START: Entering onCreate()")
         super.onCreate(savedInstanceState)
 
         // --- RUN GMAIL DIAGNOSTIC TEST HERE ---
         //lifecycleScope.launch {
-            //val token = "YOUR_TEST_OAUTH_TOKEN_HERE" // Or look up your active token here
-            //GmailDiagnostic().runDiagnostic(token)
+        //val token = "YOUR_TEST_OAUTH_TOKEN_HERE" // Or look up your active token here
+        //GmailDiagnostic().runDiagnostic(token)
         //}
         // -------------------------------------
 
@@ -126,6 +129,7 @@ class MainActivity : ComponentActivity() {
                             AppTab.ACCOUNTS -> {
                                 AccountsScreen(
                                     viewModel = viewModel,
+                                    billingViewModel = billingViewModel,
                                     accounts = accounts,
                                     onAddAccount = { email, nickname, provider ->
                                         viewModel.addAccount(email, nickname, provider)
@@ -142,6 +146,7 @@ class MainActivity : ComponentActivity() {
                                 val ruleError by viewModel.ruleError.collectAsState()
                                 RulesScreen(
                                     viewModel = viewModel,
+                                    billingViewModel = billingViewModel,
                                     rules = rules,
                                     ruleError = ruleError,
                                     onClearError = { viewModel.clearRuleError() },
