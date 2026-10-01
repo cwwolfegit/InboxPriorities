@@ -18,7 +18,7 @@ object MockDataRepository {
             unreadTodayCount = 4,
             unreadTotalCount = 68,
             priorityUnreadTodayCount = 1,
-            priorityUnreadTotalCount = 15,
+            priorityUnreadTotalCount = 1,
             emails = listOf(
                 MockEmail(
                     id = "1",
@@ -37,7 +37,7 @@ object MockDataRepository {
             unreadTodayCount = 2,
             unreadTotalCount = 45,
             priorityUnreadTodayCount = 0,
-            priorityUnreadTotalCount = 8,
+            priorityUnreadTotalCount = 1,
             emails = listOf(
                 MockEmail(
                     id = "3",
@@ -55,8 +55,8 @@ object MockDataRepository {
             provider = "Outlook",
             unreadTodayCount = 6,
             unreadTotalCount = 88,
-            priorityUnreadTodayCount = 2,
-            priorityUnreadTotalCount = 27,
+            priorityUnreadTodayCount = 1,
+            priorityUnreadTotalCount = 1,
             emails = listOf(
                 MockEmail(
                     id = "4",

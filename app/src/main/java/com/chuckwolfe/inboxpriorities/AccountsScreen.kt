@@ -79,15 +79,12 @@ fun AccountsScreen(
         }
     }
 
-    // Collect paid tier state directly from the ViewModel
-    val isPaidTier by viewModel.isPaidTier.collectAsState()
-
     val maxAccounts = 1
-    val isLimitReached = !isPaidTier && accounts.size >= maxAccounts
+    val isLimitReached = !isPro && accounts.size >= maxAccounts
 
     // Dynamic colors for the badge based on tier state
-    val badgeBgColor = if (isPaidTier) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer
-    val badgeTextColor = if (isPaidTier) Color(0xFF2E7D32) else Color(0xFF8E0000)
+    val badgeBgColor = if (isPro) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer
+    val badgeTextColor = if (isPro) Color(0xFF2E7D32) else Color(0xFF8E0000)
 
     // Filter accounts based on searchQuery matching nickname or email address
     val filteredAccounts = remember(accounts, searchQuery) {
@@ -165,13 +162,13 @@ fun AccountsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = if (isPaidTier) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer,
+                    color = if (isPro) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer,
                     shape = MaterialTheme.shapes.extraLarge
                 ) {
                     Text(
                         text = "${accounts.size} Connected",
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (isPaidTier) Color(0xFF2E7D32) else Color(0xFF8E0000),
+                        color = if (isPro) Color(0xFF2E7D32) else Color(0xFF8E0000),
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )

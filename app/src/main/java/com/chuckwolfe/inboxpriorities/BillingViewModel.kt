@@ -2,6 +2,7 @@ package com.chuckwolfe.inboxpriorities
 
 import android.app.Activity
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import com.android.billingclient.api.ProductDetails
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,7 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class BillingViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val _isProUnlocked = MutableStateFlow(false)
+    private val prefs = application.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
+
+    // Initialize state from local storage so it persists across sessions
+    private val _isProUnlocked = MutableStateFlow(prefs.getBoolean("is_pro_unlocked", false))
     val isProUnlocked: StateFlow<Boolean> = _isProUnlocked.asStateFlow()
 
     private val _productPrice = MutableStateFlow("Loading...")
@@ -21,6 +25,7 @@ class BillingViewModel(application: Application) : AndroidViewModel(application)
     private val billingManager = BillingManager(application) {
         // This callback triggers when a purchase is successfully acknowledged
         _isProUnlocked.value = true
+        prefs.edit().putBoolean("is_pro_unlocked", true).apply()
     }
 
     init {
@@ -28,6 +33,7 @@ class BillingViewModel(application: Application) : AndroidViewModel(application)
             // Check if the user already bought it previously
             billingManager.checkExistingPurchases { hasPurchased ->
                 _isProUnlocked.value = hasPurchased
+                prefs.edit().putBoolean("is_pro_unlocked", hasPurchased).apply()
             }
             // Fetch the price from Google Play Console
             billingManager.queryProductDetails { details ->

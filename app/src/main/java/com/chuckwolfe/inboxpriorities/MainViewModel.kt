@@ -26,15 +26,20 @@ class MainViewModel(
     private val repository: RulesRepository
 ) : AndroidViewModel(application) {
 
+    // --- SharedPreferences & Token Caches ---
+    private val prefs = application.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
+
     // --- State Flows (Declared first so they initialize before the init block) ---
 
-    // Global in-memory tier state for testing paid features without restarting the app
-    private val _isPaidTier = MutableStateFlow(false)
-    val isPaidTier: StateFlow<Boolean> = _isPaidTier.asStateFlow()
+    // Global in-memory pro state initialized from persistent storage
+    private val _isPro = MutableStateFlow(prefs.getBoolean("is_pro_unlocked", false))
+    val isPro: StateFlow<Boolean> = _isPro.asStateFlow()
 
     fun toggleTier() {
-        _isPaidTier.value = !_isPaidTier.value
-        // Force a reload so emails re-evaluate with the new tier status immediately
+        val newState = !_isPro.value
+        _isPro.value = newState
+        prefs.edit().putBoolean("is_pro_unlocked", newState).apply()
+        // Force a reload so emails re-evaluate with the new pro status immediately
         hasLoadedAccountsOnStartup = false
         loadAllDefinedAccounts(getApplication(), force = true)
     }
@@ -106,8 +111,6 @@ class MainViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // --- SharedPreferences & Token Caches ---
-    private val prefs = application.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
     private val activeGoogleTokens = mutableMapOf<String, String>()
     private val activeOutlookTokens = mutableMapOf<String, String>()
     private val activeGoogleAccounts = mutableMapOf<String, GoogleSignInAccount>()
@@ -483,13 +486,13 @@ class MainViewModel(
                                     var todayPriorityCount = 0
                                     val accountPriorityEmails = mutableListOf<Email>()
 
-                                    Log.d("isPaidTier_MainViewModel", "Evaluating with isPaidTier.value: ${isPaidTier.value}")
+                                    Log.d("isPro_MainViewModel", "Evaluating with isPro.value: ${isPro.value}")
                                     for (email in recentEmails) {
                                         val (level, _) = PriorityEvaluator.evaluatePriority(
                                             sender = email.sender,
                                             subject = email.subject,
                                             rules = applicableRules,
-                                            isPaidUser = isPaidTier.value,
+                                            isPaidUser = isPro.value,
                                             isContact = { cleanedEmail ->
                                                 isContact(account.emailAddress, cleanedEmail)
                                             }
@@ -664,10 +667,10 @@ class MainViewModel(
                     hasLoadedAccountsOnStartup = false
                     loadAllDefinedAccounts(getApplication())
                 } else {
-                    android.util.Log.e("OAuth", "Failed to exchange authorization code for tokens.")
+                    android.util.Log.e("OAuth", "Failed to exchange authorization code")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("OAuth", "Exception during token exchange: ${e.message}", e)
+                android.util.Log.e("OAuth", "Exception during code exchange", e)
             }
         }
     }
