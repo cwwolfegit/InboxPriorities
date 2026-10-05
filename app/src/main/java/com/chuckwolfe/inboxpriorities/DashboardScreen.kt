@@ -58,7 +58,7 @@ fun DashboardScreen(
     var expandedAccounts by remember { mutableStateOf(setOf<String>()) }
     var searchQuery by remember { mutableStateOf("") }
 
-// Collect Pro status and price from the BillingViewModel
+    // Collect Pro status and price from the BillingViewModel
     val isPro by billingViewModel.isProUnlocked.collectAsState()
     val price by billingViewModel.productPrice.collectAsState()
     val activity = LocalContext.current as? Activity
@@ -85,10 +85,7 @@ fun DashboardScreen(
         }
     }
 
-    // Calculate aggregate top-level priority counts from the ViewModel maps
-    val totalPriorityTodaySum = priorityTodayMap.values.sumOf { it.toIntOrNull() ?: 0 }
-    val totalPriorityTotalSum = priorityUnreadMap.values.sumOf { it.toIntOrNull() ?: 0 }
-
+    // Unified start of today timestamp helper
     val startOfTodayMillis = remember {
         val calendar = java.util.Calendar.getInstance().apply {
             set(java.util.Calendar.HOUR_OF_DAY, 0)
@@ -112,7 +109,6 @@ fun DashboardScreen(
 
         Log.d("isPaidTier_Dashboard", "Evaluating with isPaidTier: $isPro")
         emails.map { email ->
-            // Find account if needed or fall back cleanly
             val defaultAccountEmail = accounts.firstOrNull()?.emailAddress ?: ""
             val calculatedPriority = PriorityEvaluator.evaluatePriority(
                 sender = email.sender,
@@ -156,11 +152,11 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "INBOX PRIORITIES",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = Color(0xFF1A73E8),
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.2.sp
                     )
@@ -178,7 +174,7 @@ fun DashboardScreen(
                         Surface(
                             shape = RoundedCornerShape(16.dp),
                             color = if (isPro) {
-                                Color(0xFFE8F5E9) // Soft light green background
+                                Color(0xFFE8F5E9)
                             } else {
                                 MaterialTheme.colorScheme.errorContainer
                             },
@@ -195,9 +191,9 @@ fun DashboardScreen(
                             Text(
                                 text = if (isPro) "PRO Tier" else "Free Tier (Unlock Pro - $price)",
                                 color = if (isPro) {
-                                    Color(0xFF2E7D32) // Deep forest green text
+                                    Color(0xFF2E7D32)
                                 } else {
-                                    Color(0xFF8E0000) // Deep red text
+                                    Color(0xFF8E0000)
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
@@ -227,6 +223,7 @@ fun DashboardScreen(
             }
             Spacer(modifier = Modifier.height(12.dp))
         }
+
         // --- 2. ACCOUNTS BREAKDOWN & INLINE ACCORDIONS ---
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -267,7 +264,7 @@ fun DashboardScreen(
             item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFCE4EC) // Explicit soft pink container
+                        containerColor = Color(0xFFFCE4EC)
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -276,7 +273,7 @@ fun DashboardScreen(
                     Text(
                         text = "No connected accounts. Please add an email account.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF880E4F), // Explicit deep pink/maroon text
+                        color = Color(0xFF880E4F),
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -315,7 +312,6 @@ fun DashboardScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            // Always allow opening the email client whether priority exists or not
                             openEmailInbox(context, account.emailAddress)
                         },
                     colors = CardDefaults.cardColors(
@@ -325,8 +321,82 @@ fun DashboardScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        val providerLabel = account.provider.name.lowercase().replaceFirstChar { it.uppercase() }
+                        val titleText = if (account.nickname.isNotBlank()) {
+                            "${account.nickname} ($providerLabel)"
+                        } else {
+                            account.emailAddress
+                        }
+                        val errorText = accountErrors[account.emailAddress]
+
+                        // --- LINE 1: Sign-in Error Banner with Refresh Icon (Only if needed) ---
+                        if (errorText != null) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (account.provider == AccountProvider.OUTLOOK) {
+                                            MicrosoftAuthHelper.startLogin(context)
+                                        } else {
+                                            val authRequest = googleAuthHelper.createAuthorizationRequest(account.emailAddress)
+                                            googleAuthHelper.authClient.authorize(authRequest)
+                                                .addOnSuccessListener { authorizationResult ->
+                                                    if (authorizationResult.accessToken != null) {
+                                                        val newToken = authorizationResult.accessToken!!
+                                                        viewModel.retryAccountAuth(account.emailAddress, newToken, context)
+                                                    }
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    android.util.Log.e("Debug_Dashboard", "Failed to re-authorize Google account: ${account.emailAddress}", e)
+                                                }
+                                        }
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Tap to Sign-in!",
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Retry Sign-in",
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // --- LINE 2: Account Name & Provider Only ---
+                        Text(
+                            text = titleText,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        // --- LINE 3: Email Address Only ---
+                        if (account.nickname.isNotBlank()) {
+                            Text(
+                                text = account.emailAddress,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // --- LINE 4: Priority Badge & Expand Arrow (If priority exists) ---
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -340,172 +410,95 @@ fun DashboardScreen(
                                             }
                                         }
                                     } else Modifier
-                                ),
+                                )
+                                .padding(top = 2.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val providerLabel = account.provider.name.lowercase().replaceFirstChar { it.uppercase() }
-                            val titleText = if (account.nickname.isNotBlank()) {
-                                "${account.nickname} ($providerLabel)"
-                            } else {
-                                account.emailAddress
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = if (hasPriority) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerHigh
+                                }
+                            ) {
+                                val badgeText = when {
+                                    !hasPriority -> "No priority"
+                                    accountPriorityToday == accountPriorityTotal -> "$accountPriorityToday priority"
+                                    else -> "$accountPriorityToday today · $accountPriorityTotal total priority"
+                                }
+
+                                Text(
+                                    text = badgeText,
+                                    color = if (hasPriority) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
                             }
 
-                            Column(modifier = Modifier.weight(1f)) {
+                            if (hasPriority) {
                                 Text(
-                                    text = titleText,
+                                    text = if (isExpanded) "▲" else "▼",
                                     style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                            }
+                        }
 
-                                if (account.nickname.isNotBlank()) {
+                        // --- LINE 5: Non-Priority Unread Counts & Email Icon (If no priority) ---
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "$accountUnreadToday today ·",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(12.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
                                     Text(
-                                        text = account.emailAddress,
+                                        text = "$trueAccountTotal total unread",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-
-                                Spacer(modifier = Modifier.height(2.dp))
-
-                                val errorText = accountErrors[account.emailAddress]
-
-                                if (errorText != null) {
-                                    Surface(
-                                        color = MaterialTheme.colorScheme.errorContainer,
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 8.dp)
-                                            .clickable {
-                                                if (account.provider == AccountProvider.OUTLOOK) {
-                                                    MicrosoftAuthHelper.startLogin(context)
-                                                } else {
-                                                    val authRequest = googleAuthHelper.createAuthorizationRequest(account.emailAddress)
-                                                    googleAuthHelper.authClient.authorize(authRequest)
-                                                        .addOnSuccessListener { authorizationResult ->
-                                                            if (authorizationResult.accessToken != null) {
-                                                                val newToken = authorizationResult.accessToken!!
-                                                                viewModel.retryAccountAuth(account.emailAddress, newToken, context)
-                                                            }
-                                                        }
-                                                        .addOnFailureListener { e ->
-                                                            android.util.Log.e("Debug_Dashboard", "Failed to re-authorize Google account: ${account.emailAddress}", e)
-                                                        }
-                                                }
-                                            }
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(12.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Tap to Sign-in!",
-                                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                                style = MaterialTheme.typography.bodyMedium
-                                            )
-                                            Icon(
-                                                imageVector = Icons.Default.Refresh,
-                                                contentDescription = "Retry Sign-in",
-                                                tint = MaterialTheme.colorScheme.onErrorContainer,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        modifier = Modifier.padding(top = 8.dp)
-                                    ) {
-                                        Text(
-                                            text = "$accountUnreadToday today ·",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        if (isLoading) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(12.dp),
-                                                strokeWidth = 2.dp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        } else {
-                                            Text(
-                                                text = "$trueAccountTotal total unread",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                }
                             }
 
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(
-                                    shape = MaterialTheme.shapes.small,
-                                    color = if (hasPriority) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerHigh
-                                    }
-                                ) {
-                                    val badgeText = when {
-                                        !hasPriority -> "No priority"
-                                        accountPriorityToday == accountPriorityTotal -> "$accountPriorityToday priority"
-                                        else -> "$accountPriorityToday today · $accountPriorityTotal total priority"
-                                    }
-
-                                    Text(
-                                        text = badgeText,
-                                        color = if (hasPriority) {
-                                            MaterialTheme.colorScheme.onPrimary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(8.dp))
-                                if (hasPriority) {
-                                    Text(
-                                        text = if (isExpanded) "▲" else "▼",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Email,
-                                        contentDescription = "Open Email Inbox",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
+                            if (!hasPriority) {
+                                Icon(
+                                    imageVector = Icons.Default.Email,
+                                    contentDescription = "Open Email Inbox",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
 
                         // Nested Expandable Email List inside the Account Card
                         if (isExpanded && accountEmails.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             HorizontalDivider()
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // 1. Tab state & filtered list
-                            val startOfTodayMillis = remember {
-                                val calendar = java.util.Calendar.getInstance().apply {
-                                    set(java.util.Calendar.HOUR_OF_DAY, 0)
-                                    set(java.util.Calendar.MINUTE, 0)
-                                    set(java.util.Calendar.SECOND, 0)
-                                    set(java.util.Calendar.MILLISECOND, 0)
-                                }
-                                calendar.timeInMillis
-                            }
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             var selectedTab by remember(accountEmails) {
                                 val todayCount = accountEmails.count { it.timestamp >= startOfTodayMillis }
@@ -524,9 +517,10 @@ fun DashboardScreen(
                                 }
                             }
 
-                            // 2. Modern segmented button row
                             SingleChoiceSegmentedButtonRow(
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp)
                             ) {
                                 SegmentedButton(
                                     selected = selectedTab == EmailFilterTab.TODAY,
@@ -544,7 +538,6 @@ fun DashboardScreen(
                                 }
                             }
 
-                            // 3. Loop through filtered items
                             displayedEmails.forEach { email ->
                                 EmailCard(email = email)
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -560,7 +553,7 @@ fun DashboardScreen(
             item {
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFCE4EC) // Explicit soft pink container
+                        containerColor = Color(0xFFFCE4EC)
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -569,7 +562,7 @@ fun DashboardScreen(
                     Text(
                         text = "No active priority rules. Please add or enable priority rule(s).",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF880E4F), // Explicit deep pink/maroon text
+                        color = Color(0xFF880E4F),
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -632,7 +625,6 @@ fun EmailCard(email: Email) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left side: Sender name and email stacked
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
@@ -647,7 +639,6 @@ fun EmailCard(email: Email) {
                     )
                 }
 
-                // Right side: Envelope icon and Priority Badge grouped together
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
