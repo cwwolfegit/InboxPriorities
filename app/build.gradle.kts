@@ -17,8 +17,8 @@ android {
         applicationId = "com.chuckwolfe.inboxpriorities"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 4
+        versionName = "1.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -91,7 +91,7 @@ dependencies {
 
     implementation("androidx.browser:browser:1.8.0")
 
-    implementation("com.android.billingclient:billing-ktx:7.1.1")
+    implementation("com.android.billingclient:billing-ktx:8.0.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0") // (or match whatever lifecycle version your project uses)
 
 }
