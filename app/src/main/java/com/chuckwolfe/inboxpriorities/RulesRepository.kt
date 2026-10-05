@@ -31,10 +31,10 @@ class RulesRepository(private val context: Context) {
                 try {
                     json.decodeFromString<List<PriorityRule>>(jsonString)
                 } catch (e: Exception) {
-                    getDefaultRules()
+                    emptyList()
                 }
             } else {
-                getDefaultRules()
+                emptyList()
             }
         }
 
@@ -82,50 +82,6 @@ class RulesRepository(private val context: Context) {
     }
 
     // Default starter rules using named arguments to prevent positional mismatch
-    private fun getDefaultRules(): List<PriorityRule> {
-        return listOf(
-            PriorityRule(
-                id = UUID.randomUUID().toString(),
-                name = "Direct Manager",
-                ruleType = RuleType.SENDER_CONTAINS,
-                matchPattern = "boss@company.com",
-                priorityLevel = PriorityLevel.HIGH,
-                isEnabled = true
-            ),
-            PriorityRule(
-                id = UUID.randomUUID().toString(),
-                name = "Key Client Domain",
-                ruleType = RuleType.SENDER_CONTAINS,
-                matchPattern = "clientcorp.com",
-                priorityLevel = PriorityLevel.HIGH,
-                isEnabled = true
-            ),
-            PriorityRule(
-                id = UUID.randomUUID().toString(),
-                name = "Urgent Subject Line",
-                ruleType = RuleType.SUBJECT_CONTAINS,
-                matchPattern = "URGENT",
-                priorityLevel = PriorityLevel.HIGH,
-                isEnabled = true
-            ),
-            PriorityRule(
-                id = UUID.randomUUID().toString(),
-                name = "Invoices & Billing",
-                ruleType = RuleType.SUBJECT_CONTAINS,
-                matchPattern = "Invoice",
-                priorityLevel = PriorityLevel.MEDIUM,
-                isEnabled = true
-            ),
-            PriorityRule(
-                id = UUID.randomUUID().toString(),
-                name = "Old Vendor Alert",
-                ruleType = RuleType.SENDER_CONTAINS,
-                matchPattern = "support@oldvendor.com",
-                priorityLevel = PriorityLevel.LOW,
-                isEnabled = false
-            )
-        )
-    }
     suspend fun exchangeAuthorizationCode(authorizationCode: String): Boolean {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {

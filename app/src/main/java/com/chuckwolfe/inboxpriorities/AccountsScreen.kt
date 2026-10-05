@@ -82,10 +82,6 @@ fun AccountsScreen(
     val maxAccounts = 1
     val isLimitReached = !isPro && accounts.size >= maxAccounts
 
-    // Dynamic colors for the badge based on tier state
-    val badgeBgColor = if (isPro) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer
-    val badgeTextColor = if (isPro) Color(0xFF2E7D32) else Color(0xFF8E0000)
-
     // Filter accounts based on searchQuery matching nickname or email address
     val filteredAccounts = remember(accounts, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -155,7 +151,7 @@ fun AccountsScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Sub-header Row (Connected Count Badge + Stacked Warning Text + Add Button)
+            // Sub-header Row (Connected Count Badge + Add Button)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -174,29 +170,6 @@ fun AccountsScreen(
                     )
                 }
 
-                if (isLimitReached) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp)
-                    ) {
-                        Text(
-                            text = "Free tier limit of $maxAccounts",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 11.sp
-                        )
-                        Text(
-                            text = "accounts reached.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 11.sp
-                        )
-                    }
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-
                 Button(
                     onClick = { showAddDialog = true },
                     enabled = !isLimitReached
@@ -204,6 +177,17 @@ fun AccountsScreen(
                     Text("+ Add Account")
                 }
             }
+
+            // Free tier limit warning displayed cleanly underneath if reached
+            if (isLimitReached) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Free tier limit of $maxAccounts account reached. Upgrade to Pro to add more.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Search Bar Component
