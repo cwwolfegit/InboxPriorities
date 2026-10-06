@@ -87,7 +87,11 @@ fun RulesScreen(
                             // Interactive Tier Badge Button next to Title
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
-                                color = badgeBgColor,
+                                color = if (isPro) {
+                                    Color(0xFFE8F5E9)
+                                } else {
+                                    Color(0xFFFFCDD2)
+                                },
                                 modifier = Modifier
                                     .then(
                                         if (!isPro && activity != null) {
@@ -96,17 +100,20 @@ fun RulesScreen(
                                             Modifier
                                         }
                                     )
-                                    .padding(vertical = 4.dp)
                             ) {
                                 Text(
                                     text = if (isPro) "PRO Tier" else "Free Tier (Unlock Pro - $price)",
-                                    color = badgeTextColor,
+                                    color = if (isPro) {
+                                        Color(0xFF2E7D32)
+                                    } else {
+                                        Color(0xFFB71C1C)
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                 )
                             }
-                        }
+                         }
                     }
                 }
             )
@@ -164,7 +171,7 @@ fun RulesScreen(
                 // Free tier limit warning on a separate line below
                 if (isLimitReached) {
                     Text(
-                        text = "Free tier limit of $freeRuleLimit rule reached. Upgrade to Pro to add more.",
+                        text = "Free tier limit of $freeRuleLimit rule reached. Unlock Pro to add more.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )

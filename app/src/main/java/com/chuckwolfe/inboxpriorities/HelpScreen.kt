@@ -284,7 +284,7 @@ fun HelpScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(text = "About Inbox Priorities", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "Version 1.0.10")
+                        //Text(text = "Version 1.0.10")
                         Text(text = "Inbox Priorities lets you monitor your email inboxes for important messages using customizable sender and subject rules. The Dashboard displays unread priority-message counts for each configured inbox, along with total unread-message counts. Expand an inbox to preview its priority emails, then click any message to open it in your email client, where you can read and respond.")                    }
                 }
             }

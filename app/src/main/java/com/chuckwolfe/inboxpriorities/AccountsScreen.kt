@@ -110,9 +110,9 @@ fun AccountsScreen(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = if (isPro) {
-                        Color(0xFFE8F5E9) // Soft light green background
+                        Color(0xFFE8F5E9)
                     } else {
-                        MaterialTheme.colorScheme.errorContainer
+                        Color(0xFFFFCDD2)
                     },
                     modifier = Modifier
                         .then(
@@ -126,9 +126,9 @@ fun AccountsScreen(
                     Text(
                         text = if (isPro) "PRO Tier" else "Free Tier (Unlock Pro - $price)",
                         color = if (isPro) {
-                            Color(0xFF2E7D32) // Deep forest green text
+                            Color(0xFF2E7D32)
                         } else {
-                            Color(0xFF8E0000) // Deep red text
+                            Color(0xFFB71C1C)
                         },
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
@@ -177,7 +177,7 @@ fun AccountsScreen(
             if (isLimitReached) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Free tier limit of $maxAccounts account reached. Upgrade to Pro to add more.",
+                    text = "Free tier limit of $maxAccounts account reached. Unlock Pro to add more.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
