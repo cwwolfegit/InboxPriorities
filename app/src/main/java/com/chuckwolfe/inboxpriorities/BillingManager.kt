@@ -2,6 +2,7 @@ package com.chuckwolfe.inboxpriorities
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -49,7 +50,12 @@ class BillingManager(
         val params = QueryProductDetailsParams.newBuilder().setProductList(productList).build()
 
         billingClient.queryProductDetailsAsync(params) { billingResult, queryProductDetailsResult ->
+            // Add log statements here to inspect the result
+            Log.d("BillingManager", "queryProductDetails responseCode: ${billingResult.responseCode}, message: ${billingResult.debugMessage}")
+
             val productDetailsList = queryProductDetailsResult.productDetailsList
+            Log.d("BillingManager", "Found products count: ${productDetailsList?.size ?: 0}")
+
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 onResult(productDetailsList?.firstOrNull())
             } else {
@@ -57,7 +63,6 @@ class BillingManager(
             }
         }
     }
-
     fun launchPurchaseFlow(activity: Activity, productDetails: ProductDetails) {
         val productDetailsParamsList = listOf(
             BillingFlowParams.ProductDetailsParams.newBuilder()

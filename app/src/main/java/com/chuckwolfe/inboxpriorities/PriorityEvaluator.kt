@@ -15,11 +15,11 @@ object PriorityEvaluator {
         sender: String,
         subject: String,
         rules: List<PriorityRule> = emptyList(),
-        isPaidUser: Boolean = false,
+        isPro: Boolean = false,
         isContact: (String) -> Boolean = { false }
     ): Pair<PriorityLevel, String?> {
 
-        Log.d(TAG, "Evaluating priority for sender: '$sender', subject: '$subject', isPaidUser: $isPaidUser, rules count: ${rules.size}")
+        Log.d(TAG, "Evaluating priority for sender: '$sender', subject: '$subject', isPro: $isPro, rules count: ${rules.size}")
 
         // 1. Evaluate all non-@Contacts rules first
         for (rule in rules) {
@@ -33,7 +33,7 @@ object PriorityEvaluator {
         }
 
         // 2. If no standard rule matched and user is on the paid tier, check for an active @Contacts rule
-        if (isPaidUser) {
+        if (isPro) {
             val contactsRule = rules.firstOrNull { it.isEnabled && it.priorityLevel != PriorityLevel.NONE && it.name.equals("@Contacts", ignoreCase = true) }
             if (contactsRule != null) {
                 val cleanEmail = extractEmail(sender)
@@ -46,7 +46,7 @@ object PriorityEvaluator {
                 Log.d(TAG, "No active @Contacts rule found for paid user.")
             }
         } else if (rules.any { it.name == "@Contacts" && it.isEnabled }) {
-            Log.d(TAG, "@Contacts rule exists, but user is not marked as paid tier (isPaidUser = false).")
+            Log.d(TAG, "@Contacts rule exists, but user is not marked as paid tier (isPro = false).")
         }
 
         // 3. Fallback when no rule matches

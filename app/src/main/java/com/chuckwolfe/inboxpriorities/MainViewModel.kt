@@ -492,7 +492,7 @@ class MainViewModel(
                                             sender = email.sender,
                                             subject = email.subject,
                                             rules = applicableRules,
-                                            isPaidUser = isPro.value,
+                                            isPro = isPro.value,
                                             isContact = { cleanedEmail ->
                                                 isContact(account.emailAddress, cleanedEmail)
                                             }
