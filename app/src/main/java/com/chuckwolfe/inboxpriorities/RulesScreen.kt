@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RulesScreen(
-    viewModel: MainViewModel,
     billingViewModel: BillingViewModel,
     rules: List<PriorityRule>,
     ruleError: String?,
@@ -119,65 +118,55 @@ fun RulesScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Sub-header Row (Active Count Badge + Stacked Warning Text + Add Button)
-            Row(
+            // Sub-header Section with Stacked Layout
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Active Count Badge
-                Surface(
-                    color = if (isPro) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer,
-                    shape = MaterialTheme.shapes.extraLarge
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "$activeRulesCount / $totalRulesCount Active",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isPro) Color(0xFF2E7D32) else Color(0xFF8E0000),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
-
-                // Two-line limit warning stacked in the middle to prevent button layout shifts
-                if (isLimitReached) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp)
+                    // Active Count Badge
+                    Surface(
+                        color = if (isPro) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.extraLarge
                     ) {
                         Text(
-                            text = "Free tier limit of $freeRuleLimit",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 11.sp
-                        )
-                        Text(
-                            text = "rules reached.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 11.sp
+                            text = "$activeRulesCount / $totalRulesCount Active",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isPro) Color(0xFF2E7D32) else Color(0xFF8E0000),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
+
+                    // High-visibility "+ Add Rule" Button
+                    Button(
+                        onClick = {
+                            if (!isLimitReached) {
+                                showAddDialog = true
+                            }
+                        },
+                        enabled = !isLimitReached,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "+ Add Rule",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
-                // High-visibility "+ Add Rule" Button (locked in position)
-                Button(
-                    onClick = {
-                        if (!isLimitReached) {
-                            showAddDialog = true
-                        }
-                    },
-                    enabled = !isLimitReached,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
+                // Free tier limit warning on a separate line below
+                if (isLimitReached) {
                     Text(
-                        text = "+ Add Rule",
-                        fontWeight = FontWeight.Bold
+                        text = "Free tier limit of $freeRuleLimit rule reached. Upgrade to Pro to add more.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
@@ -339,6 +328,116 @@ fun RulesScreen(
                 ruleToDelete = null
             }
         )
+    }
+}
+
+@Composable
+fun RuleItemCard(
+    rule: PriorityRule,
+    onToggleEnable: (Boolean) -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    val ruleTypeLabel = when (rule.ruleType) {
+        RuleType.SENDER_CONTAINS -> "Sender contains"
+        RuleType.SUBJECT_CONTAINS -> "Subject contains"
+        else -> rule.ruleType.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
+    }
+
+    val priorityColor = when (rule.priorityLevel) {
+        PriorityLevel.HIGH -> Color(0xFFC62828)
+        PriorityLevel.MEDIUM -> Color(0xFFEF6C00)
+        PriorityLevel.LOW -> Color(0xFF2E7D32)
+        PriorityLevel.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    val priorityContainerColor = when (rule.priorityLevel) {
+        PriorityLevel.HIGH -> MaterialTheme.colorScheme.errorContainer
+        PriorityLevel.MEDIUM -> Color(0xFFFFE0B2)
+        PriorityLevel.LOW -> Color(0xFFE8F5E9)
+        PriorityLevel.NONE -> MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Line 1: Rule Name
+            Text(
+                text = rule.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Line 2: Rule Type (e.g., "Sender contains")
+            Text(
+                text = ruleTypeLabel,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Line 3: Match Pattern (e.g., "cwwxyz123@gmail.com")
+            Text(
+                text = "\"${rule.matchPattern}\"",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            // Line 4: Priority Level Badge (e.g., "HIGH")
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = priorityContainerColor
+            ) {
+                Text(
+                    text = rule.priorityLevel.name,
+                    color = priorityColor,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // Line 5: All Icons (Edit, Delete, Switch)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onEditClick,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Text("✏️", fontSize = 18.sp)
+                    }
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Text("🗑️", fontSize = 18.sp)
+                    }
+                }
+
+                Switch(
+                    checked = rule.isEnabled,
+                    onCheckedChange = onToggleEnable
+                )
+            }
+        }
     }
 }
 

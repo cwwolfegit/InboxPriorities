@@ -101,54 +101,49 @@ fun AccountsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            // Header Row (Accounts Title + Tier Badge next to it like Dashboard)
-            Row(
+            // Header Section: Line 1 = Tier Badge, Line 2 = Accounts Title
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                // Line 1: Interactive Tier Badge Button
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isPro) {
+                        Color(0xFFE8F5E9) // Soft light green background
+                    } else {
+                        MaterialTheme.colorScheme.errorContainer
+                    },
+                    modifier = Modifier
+                        .then(
+                            if (!isPro && activity != null) {
+                                Modifier.clickable { billingViewModel.buyPro(activity) }
+                            } else {
+                                Modifier
+                            }
+                        )
                 ) {
                     Text(
-                        text = "Accounts",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    // Interactive Tier Badge Button next to Title
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        text = if (isPro) "PRO Tier" else "Free Tier (Unlock Pro - $price)",
                         color = if (isPro) {
-                            Color(0xFFE8F5E9) // Soft light green background
+                            Color(0xFF2E7D32) // Deep forest green text
                         } else {
-                            MaterialTheme.colorScheme.errorContainer
+                            Color(0xFF8E0000) // Deep red text
                         },
-                        modifier = Modifier
-                            .then(
-                                if (!isPro && activity != null) {
-                                    Modifier.clickable { billingViewModel.buyPro(activity) }
-                                } else {
-                                    Modifier
-                                }
-                            )
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = if (isPro) "PRO Tier" else "Free Tier (Unlock Pro - $price)",
-                            color = if (isPro) {
-                                Color(0xFF2E7D32) // Deep forest green text
-                            } else {
-                                Color(0xFF8E0000) // Deep red text
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                        )
-                    }
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
                 }
+
+                // Line 2: Accounts Title
+                Text(
+                    text = "Accounts",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
             }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Sub-header Row (Connected Count Badge + Add Button)
@@ -421,10 +416,10 @@ fun AccountManagementCard(
     onRemove: () -> Unit
 ) {
     val providerLabel = account.provider.name.lowercase().replaceFirstChar { it.uppercase() }
-    val titleText = if (account.nickname.isNotBlank()) {
+    val accountNameText = if (account.nickname.isNotBlank()) {
         "${account.nickname} ($providerLabel)"
     } else {
-        account.emailAddress
+        providerLabel
     }
 
     Card(
@@ -433,33 +428,43 @@ fun AccountManagementCard(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = titleText,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                if (account.nickname.isNotBlank()) {
-                    Text(
-                        text = account.emailAddress,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            // Line 1: Account Name / Nickname + Provider
+            Text(
+                text = accountNameText,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
 
-            Row {
-                IconButton(onClick = onEdit) {
+            // Line 2: Email Address
+            Text(
+                text = account.emailAddress,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Line 3: Edit and Delete Icons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Text("✏️", fontSize = 18.sp)
                 }
-                IconButton(onClick = onRemove) {
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = onRemove,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Text("🗑️", fontSize = 18.sp)
                 }
             }

@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
-import com.chuckwolfe.inboxpriorities.ContactCache.isContact
 
 import com.chuckwolfe.inboxpriorities.utils.openEmailInbox
 
@@ -96,35 +95,14 @@ fun DashboardScreen(
         calendar.timeInMillis
     }
 
-    // This will trigger whenever the accounts list changes (e.g., when Room finishes loading them)
+    // This will trigger whenever the accounts list changes
     LaunchedEffect(key1 = accounts) {
         if (accounts.isNotEmpty()) {
             viewModel.loadAllDefinedAccounts(context)
         }
     }
 
-    // 1. Evaluate all emails against active rules
-    val allEvaluatedEmails = remember(rules, emails, accounts) {
-        val activeRules = rules.filter { it.isEnabled }
-
-        Log.d("isPaidTier_Dashboard", "Evaluating with isPaidTier: $isPro")
-        emails.map { email ->
-            val defaultAccountEmail = accounts.firstOrNull()?.emailAddress ?: ""
-            val calculatedPriority = PriorityEvaluator.evaluatePriority(
-                sender = email.sender,
-                subject = email.subject,
-                rules = activeRules,
-                isPaidUser = isPro,
-                isContact = { cleanedEmail ->
-                    isContact(defaultAccountEmail, cleanedEmail)
-                }
-            ).first
-
-            email.copy(priorityLevel = calculatedPriority)
-        }
-    }
-
-    // 2. Filter accounts based on searchQuery matching nickname or email address
+    // 1. Filter accounts based on searchQuery matching nickname or email address
     val filteredAccounts = remember(accounts, searchQuery) {
         if (searchQuery.isBlank()) {
             accounts
@@ -136,92 +114,91 @@ fun DashboardScreen(
         }
     }
 
-    // 3. Dynamic top summary calculations
+    // 2. Dynamic top summary calculations
     val hasActiveRules = rules.any { it.isEnabled }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // --- 1. TOP SUMMARY TOTALS & TIER INDICATOR ---
+        // --- 1. TOP HEADER SECTION ---
         item {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "INBOX PRIORITIES",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF1A73E8),
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Dashboard",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                // Line 1: "INBOX PRIORITIES"
+                Text(
+                    text = "INBOX PRIORITIES",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF1A73E8),
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp
+                )
 
-                        // Interactive Tier Badge Button
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (isPro) {
-                                Color(0xFFE8F5E9)
+                // Line 2: "Free Tier" badge
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isPro) {
+                        Color(0xFFE8F5E9)
+                    } else {
+                        Color(0xFFFFCDD2)
+                    },
+                    modifier = Modifier
+                        .then(
+                            if (!isPro && activity != null) {
+                                Modifier.clickable { billingViewModel.buyPro(activity) }
                             } else {
-                                MaterialTheme.colorScheme.errorContainer
-                            },
-                            modifier = Modifier
-                                .then(
-                                    if (!isPro && activity != null) {
-                                        Modifier.clickable { billingViewModel.buyPro(activity) }
-                                    } else {
-                                        Modifier
-                                    }
-                                )
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = if (isPro) "PRO Tier" else "Free Tier (Unlock Pro - $price)",
-                                color = if (isPro) {
-                                    Color(0xFF2E7D32)
-                                } else {
-                                    Color(0xFF8E0000)
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                Modifier
+                            }
+                        )
+                ) {
+                    Text(
+                        text = if (isPro) "PRO Tier" else "Free Tier (Unlock Pro - $price)",
+                        color = if (isPro) {
+                            Color(0xFF2E7D32)
+                        } else {
+                            Color(0xFFB71C1C)
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+
+                // Line 3: "Dashboard" on left, Refresh icon on right
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Dashboard",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    IconButton(
+                        onClick = { viewModel.loadAllDefinedAccounts(context, force = true) },
+                        enabled = !isLoading
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Refresh Dashboard",
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
                 }
-
-                IconButton(
-                    onClick = { viewModel.loadAllDefinedAccounts(context, force = true) },
-                    enabled = !isLoading
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh Dashboard",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
             }
-            Spacer(modifier = Modifier.height(12.dp))
         }
 
         // --- 2. ACCOUNTS BREAKDOWN & INLINE ACCORDIONS ---
@@ -232,7 +209,6 @@ fun DashboardScreen(
                     style = MaterialTheme.typography.titleLarge
                 )
 
-                // Search Bar Component
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -268,7 +244,7 @@ fun DashboardScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
+                        .padding(top = 4.dp)
                 ) {
                     Text(
                         text = "No connected accounts. Please add an email account.",
@@ -286,7 +262,7 @@ fun DashboardScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 32.dp),
+                        .padding(vertical = 24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -332,10 +308,9 @@ fun DashboardScreen(
                         }
                         val errorText = accountErrors[account.emailAddress]
 
-                        // --- LINE 1: Sign-in Error Banner with Refresh Icon (Only if needed) ---
                         if (errorText != null) {
                             Surface(
-                                color = MaterialTheme.colorScheme.errorContainer,
+                                color = Color(0xFFFFCDD2),
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -366,28 +341,26 @@ fun DashboardScreen(
                                 ) {
                                     Text(
                                         text = "Tap to Sign-in!",
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        color = Color(0xFFB71C1C),
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Icon(
                                         imageVector = Icons.Default.Refresh,
                                         contentDescription = "Retry Sign-in",
-                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                        tint = Color(0xFFB71C1C),
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
                             }
                         }
 
-                        // --- LINE 2: Account Name & Provider Only ---
                         Text(
                             text = titleText,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
 
-                        // --- LINE 3: Email Address Only ---
                         if (account.nickname.isNotBlank()) {
                             Text(
                                 text = account.emailAddress,
@@ -396,7 +369,6 @@ fun DashboardScreen(
                             )
                         }
 
-                        // --- LINE 4: Priority Badge & Expand Arrow (If priority exists) ---
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -424,7 +396,7 @@ fun DashboardScreen(
                                 }
                             ) {
                                 val badgeText = when {
-                                    !hasPriority -> "No priority"
+                                    !hasPriority -> "No priorities"
                                     accountPriorityToday == accountPriorityTotal -> "$accountPriorityToday priority"
                                     else -> "$accountPriorityToday today · $accountPriorityTotal total priority"
                                 }
@@ -452,7 +424,6 @@ fun DashboardScreen(
                             }
                         }
 
-                        // --- LINE 5: Non-Priority Unread Counts & Email Icon (If no priority) ---
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -494,7 +465,6 @@ fun DashboardScreen(
                             }
                         }
 
-                        // Nested Expandable Email List inside the Account Card
                         if (isExpanded && accountEmails.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             HorizontalDivider()
@@ -502,12 +472,11 @@ fun DashboardScreen(
 
                             var selectedTab by remember(accountEmails) {
                                 val todayCount = accountEmails.count { it.timestamp >= startOfTodayMillis }
-                                val initialTab = if (todayCount == 0 && accountEmails.isNotEmpty()) {
-                                    EmailFilterTab.TOTAL
+                                if (todayCount == 0 && accountEmails.isNotEmpty()) {
+                                    mutableStateOf(EmailFilterTab.TOTAL)
                                 } else {
-                                    EmailFilterTab.TODAY
+                                    mutableStateOf(EmailFilterTab.TODAY)
                                 }
-                                mutableStateOf(initialTab)
                             }
 
                             val displayedEmails = remember(accountEmails, selectedTab) {
@@ -538,9 +507,13 @@ fun DashboardScreen(
                                 }
                             }
 
-                            displayedEmails.forEach { email ->
-                                EmailCard(email = email)
-                                Spacer(modifier = Modifier.height(8.dp))
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                displayedEmails.forEach { email ->
+                                    EmailCard(email = email)
+                                }
                             }
                         }
                     }
@@ -548,7 +521,6 @@ fun DashboardScreen(
             }
         }
 
-        // --- 3. ACTIVE RULES WARNING ---
         if (!hasActiveRules) {
             item {
                 Card(
@@ -557,7 +529,7 @@ fun DashboardScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
+                        .padding(top = 4.dp)
                 ) {
                     Text(
                         text = "No active priority rules. Please add or enable priority rule(s).",

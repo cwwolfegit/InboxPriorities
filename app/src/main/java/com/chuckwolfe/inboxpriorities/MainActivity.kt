@@ -145,7 +145,6 @@ class MainActivity : ComponentActivity() {
                             AppTab.RULES -> {
                                 val ruleError by viewModel.ruleError.collectAsState()
                                 RulesScreen(
-                                    viewModel = viewModel,
                                     billingViewModel = billingViewModel,
                                     rules = rules,
                                     ruleError = ruleError,
