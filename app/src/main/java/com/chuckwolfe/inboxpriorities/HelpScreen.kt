@@ -29,44 +29,44 @@ data class FaqItem(val question: String, val answer: String)
 
 val faqList = listOf(
     FaqItem(
-        question = "Q: How does the app handle my credentials and email data securely?",
-        answer = "A: The app uses secure OAuth authentication protocols directly through your providers, ensuring your credentials are never stored locally."
+        question = "Q: How does Inbox Priorities handle my credentials and email data securely?",
+        answer = "A: Inbox Priorities uses secure OAuth authentication protocols directly through your email providers, ensuring your credentials are never stored locally."
     ),
     FaqItem(
-        question = "Q: Does the app collect any personal data?",
-        answer = "A: No, the app processes your unread messages locally and via secure provider APIs without collecting, storing, or selling your personal data or email contents on external servers."
+        question = "Q: Does Inbox Priorities collect any personal data?",
+        answer = "A: No, Inbox Priorities processes your unread messages locally, and via secure provider APIs, without collecting, storing, or selling your personal data or email contents on external servers."
     ),
     FaqItem(
-        question = "Q: What permissions does the app require to access my email?",
-        answer = "A: The app requests only the read-only or scoped permissions necessary via OAuth to retrieve unread message headers and snippets for your priority dashboard, without allowing the app to delete or alter your emails."
+        question = "Q: What permissions does Inbox Priorities require to access my email?",
+        answer = "A: Inbox Priorities requests only the read-only or scoped permissions necessary via OAuth to retrieve unread message headers and snippets for your priority dashboard, without allowing Inbox Priorities to delete or alter your emails."
     ),
     FaqItem(
         question = "Q: Does Inbox Priorities store my account passwords?",
-        answer = "A: No. Your app maintains a lightweight architecture by utilizing your device's native mail clients and system intents directly, meaning your credentials stay securely inside your chosen email apps."
+        answer = "A: No. Inbox Priorities maintains a lightweight architecture by utilizing your device's native mail clients and system intents directly, meaning your credentials stay securely inside your chosen email apps."
     ),
     FaqItem(
         question = "Q: Are my custom rules and app preferences stored securely?",
         answer = "A: Yes, all local custom rules, filters, and dashboard preferences are saved securely in your device's local storage."
     ),
     FaqItem(
-        question = "Q: Is there a limit to the number of unread emails that the app will check?",
-        answer = "A: Yes, the app checks up to 201 unread emails in total and then processes the first 50 unread messages specifically for priority counts and categorization."
+        question = "Q: Is there a limit to the number of unread emails that Inbox Priorities will check?",
+        answer = "A: Yes, Inbox Priorities checks up to 201 unread emails in total and then processes the first 50 unread messages specifically for priority counts and categorization."
     ),
     FaqItem(
         question = "Q: How many email accounts can I add?",
-        answer = "A: In the free version, one email account is supported. This limit is removed if you upgrade to the paid version."
+        answer = "A: In the free tier, one email account is supported. This limit is removed if you upgrade to the pro tier."
     ),
     FaqItem(
         question = "Q: How many priority rules can I add?",
-        answer = "A: In the free version, you can add one priority rule, with unlimited rules available in the paid version."
+        answer = "A: In the free tier, you can add one priority rule, with unlimited rules available in the pro tier."
     ),
     FaqItem(
         question = "Q: How do I add or remove an email account?",
-        answer = "A: Select \"Accounts\" from the menu. In the free version, if you have not reached the one-account limit, click \"Add Account\" and enter the required details. Use the edit or delete icons to modify or remove an existing account."
+        answer = "A: Select \"Accounts\" from the menu. In the free tier, if you have not reached the one-account limit, click \"Add Account\" and enter the required details. Use the edit or delete icons to modify or remove an existing account."
     ),
     FaqItem(
         question = "Q: How do I add or remove a priority rule?",
-        answer = "A: Select \"Rules\" from the menu. In the free version, if you have not reached the one-rule limit, click \"Add Rule\" and enter the required details. Use the edit, delete, or \"active\" switch to modify, remove, or toggle the rule between active and inactive states."
+        answer = "A: Select \"Rules\" from the menu. In the free tier, if you have not reached the one-rule limit, click \"Add Rule\" and enter the required details. Use the edit, delete, or \"active\" switch to modify, remove, or toggle the rule between active and inactive states."
     ),
     FaqItem(
         question = "Q: How do priority rules work?",
@@ -74,7 +74,7 @@ val faqList = listOf(
     ),
     FaqItem(
         question = "Q: What happens if my email sign-in or session expires?",
-        answer = "A: If your provider session or OAuth token expires, the app will prompt you to re-authenticate securely through your account settings to resume fetching unread messages."
+        answer = "A: If your provider session or OAuth token expires, Inbox Priorities will prompt you to re-authenticate securely through your account settings to resume fetching unread messages."
     ),
     FaqItem(
         question = "Q: How do I view my categorized priority emails on the dashboard?",
@@ -106,29 +106,29 @@ val faqList = listOf(
     ),
     FaqItem(
         question = "Q: What are the minimum system requirements to run Inbox Priorities?",
-        answer = "A: The app requires Android 8.0 (API level 26) or higher, a standard physical smartphone, a minimum of 2GB of RAM, and an active internet connection (either Wi-Fi or cellular data) to communicate securely with the email APIs."
+        answer = "A: Inbox Priorities requires Android 8.0 (API level 26) or higher, a standard physical smartphone, a minimum of 2GB of RAM, and an active internet connection (either Wi-Fi or cellular data) to communicate securely with the email APIs."
     ),
     FaqItem(
-        question = "Q: Why don't my app unread counts match my main web inbox count?",
+        question = "Q: Why don't my Inbox Priorities unread gmail message counts match my main web inbox count?",
         answer = "A: Inbox Priorities focuses strictly on your Primary inbox tab (category:primary) to filter out promotional and social clutter. Your main web inbox displays an aggregate count across all tabs, which usually results in a higher total count. To query your emails like Inbox Priorities, search your emails using this filter: label:unread category:primary"
     ),
     FaqItem(
-        question = "Q: What does the app's unread count actually measure?",
+        question = "Q: What does Inbox Priorities's unread count actually measure?",
         answer = "A: It tracks unread threads and messages located specifically in your Primary inbox so you can focus on direct conversations and important emails without the noise."
     ),
     FaqItem(
         question = "Q: Can I use my Gmail and Outlook contacts to prioritize emails?",
-        answer = "A: Yes, the paid tier allows you to do this by adding a special priority rule using \"@Contacts\" as the rule name. Any email address found in your contacts list will be prioritized. You can override the \"@Contacts\" priority by setting up specific priority rules for specific email addresses."
+        answer = "A: Yes, the pro tier allows you to do this by adding a special priority rule using \"@Contacts\" as the rule name. Any email address found in your contacts list will be prioritized. You can override the \"@Contacts\" priority by setting up specific priority rules for specific email addresses."
     ),
     FaqItem(
         question = "Q: How does Inbox Priorities recognize my contacts?",
-        answer = "A: Inbox Priorities evaluates rules against your Android device's central address book (ContactsContract)."
+        answer = "A: Inbox Priorities evaluates rules against your Android device's central address book (Contacts)."
     ),
     FaqItem(
         question = "Q: Do I need to sync my Gmail and Outlook contacts to my phone?",
-        answer = "A: Yes. Because the app reads from your device's native address book, your contacts need to be synced down to your phone's storage:\n\n" +
-                 "• Google Contacts: Usually syncs automatically with your Android device login.\n\n" +
-                 "• Outlook Contacts: If you use the Microsoft Outlook app, you can ensure your contacts are visible to the device by opening Outlook, going to your account settings, and turning Sync Contacts ON. Alternatively, you can add your Outlook account directly under your Android device's Settings > Passwords & accounts and ensure contact synchronization is enabled."
+        answer = "A: Yes. Because Inbox Priorities reads from your device's native address book, your contacts need to be synced down to your phone's storage:\n\n" +
+                "• Google Contacts: Usually syncs automatically with your Android device login.\n\n" +
+                "• Outlook Contacts: If you use the Microsoft Outlook app, you can ensure your contacts are visible to the device by opening Outlook, going to your account settings, and turning Sync Contacts ON. Alternatively, you can add your Outlook account directly under your Android device's Settings > Passwords & accounts and ensure contact synchronization is enabled."
     )
 )
 @OptIn(ExperimentalMaterial3Api::class)
