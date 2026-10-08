@@ -129,14 +129,20 @@ fun DashboardScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Line 1: "INBOX PRIORITIES"
-                Text(
-                    text = "INBOX PRIORITIES",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF1A73E8),
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp
-                )
+                // Line 1: "INBOX PRIORITIES" inside a styled Surface matching priority counts
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.primary
+                ) {
+                    Text(
+                        text = "INBOX PRIORITIES",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
 
                 // Line 2: "Free Tier" badge
                 Surface(
@@ -285,11 +291,7 @@ fun DashboardScreen(
                 val hasPriority = numericPriorityTotal > 0
 
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            openEmailInbox(context, account.emailAddress)
-                        },
+                    modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
@@ -372,17 +374,6 @@ fun DashboardScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .then(
-                                    if (hasPriority) {
-                                        Modifier.clickable {
-                                            expandedAccounts = if (isExpanded) {
-                                                expandedAccounts - account.emailAddress
-                                            } else {
-                                                expandedAccounts + account.emailAddress
-                                            }
-                                        }
-                                    } else Modifier
-                                )
                                 .padding(top = 2.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -393,7 +384,18 @@ fun DashboardScreen(
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.surfaceContainerHigh
-                                }
+                                },
+                                modifier = Modifier.then(
+                                    if (hasPriority) {
+                                        Modifier.clickable {
+                                            expandedAccounts = if (isExpanded) {
+                                                expandedAccounts - account.emailAddress
+                                            } else {
+                                                expandedAccounts + account.emailAddress
+                                            }
+                                        }
+                                    } else Modifier
+                                )
                             ) {
                                 val badgeText = when {
                                     !hasPriority -> "No priorities"
@@ -415,12 +417,25 @@ fun DashboardScreen(
                             }
 
                             if (hasPriority) {
-                                Text(
-                                    text = if (isExpanded) "▲" else "▼",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clickable {
+                                            expandedAccounts = if (isExpanded) {
+                                                expandedAccounts - account.emailAddress
+                                            } else {
+                                                expandedAccounts + account.emailAddress
+                                            }
+                                        }
+                                        .padding(8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (isExpanded) "▲" else "▼",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
 
@@ -455,7 +470,10 @@ fun DashboardScreen(
                                 }
                             }
 
-                            if (!hasPriority) {
+                            IconButton(
+                                onClick = { openEmailInbox(context, account.emailAddress) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.Email,
                                     contentDescription = "Open Email Inbox",
