@@ -354,14 +354,14 @@ fun RuleItemCard(
     val priorityColor = when (rule.priorityLevel) {
         PriorityLevel.HIGH -> Color(0xFFC62828)
         PriorityLevel.MEDIUM -> Color(0xFFEF6C00)
-        PriorityLevel.LOW -> Color(0xFF2E7D32)
+        PriorityLevel.LOW -> Color(0xFF1976D2)
         PriorityLevel.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     val priorityContainerColor = when (rule.priorityLevel) {
         PriorityLevel.HIGH -> MaterialTheme.colorScheme.errorContainer
         PriorityLevel.MEDIUM -> Color(0xFFFFE0B2)
-        PriorityLevel.LOW -> Color(0xFFE8F5E9)
+        PriorityLevel.LOW -> Color(0xFFE3F2FD)
         PriorityLevel.NONE -> MaterialTheme.colorScheme.surfaceVariant
     }
 

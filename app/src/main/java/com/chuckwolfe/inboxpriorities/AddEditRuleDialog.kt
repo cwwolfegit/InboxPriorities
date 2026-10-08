@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,28 +78,47 @@ fun AddEditRuleDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Split PriorityLevel entries into rows of 2
                     PriorityLevel.entries.chunked(2).forEach { rowLevels ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             rowLevels.forEach { level ->
+                                val textColor = when (level) {
+                                    PriorityLevel.HIGH -> Color(0xFFC62828)
+                                    PriorityLevel.MEDIUM -> Color(0xFFEF6C00)
+                                    PriorityLevel.LOW -> Color(0xFF1976D2) // Blue
+                                    PriorityLevel.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                                val containerColor = when (level) {
+                                    PriorityLevel.HIGH -> MaterialTheme.colorScheme.errorContainer
+                                    PriorityLevel.MEDIUM -> Color(0xFFFFFE0B2)
+                                    PriorityLevel.LOW -> Color(0xFFE3F2FD) // Light blue container
+                                    PriorityLevel.NONE -> MaterialTheme.colorScheme.surfaceVariant
+                                }
+
                                 FilterChip(
                                     selected = selectedPriority == level,
                                     onClick = { selectedPriority = level },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = containerColor,
+                                        selectedLabelColor = textColor,
+                                        selectedLeadingIconColor = textColor
+                                    ),
                                     label = {
                                         Box(
                                             modifier = Modifier.fillMaxWidth(),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(text = level.name)
+                                            Text(
+                                                text = level.name,
+                                                color = if (selectedPriority == level) textColor else MaterialTheme.colorScheme.onSurface
+                                            )
                                         }
                                     },
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                            // If a row has an odd number of items, add an empty spacer to keep grid balanced
                             if (rowLevels.size < 2) {
                                 Spacer(modifier = Modifier.weight(1f))
                             }

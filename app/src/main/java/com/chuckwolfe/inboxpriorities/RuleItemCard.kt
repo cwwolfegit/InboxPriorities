@@ -1,4 +1,4 @@
-package     com.chuckwolfe.inboxpriorities
+package com.chuckwolfe.inboxpriorities
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -95,7 +95,7 @@ fun PriorityBadge(priorityLevel: PriorityLevel) {
     val (backgroundColor, contentColor) = when (priorityLevel) {
         PriorityLevel.HIGH -> Color(0xFFFFEBEE) to Color(0xFFC62828)
         PriorityLevel.MEDIUM -> Color(0xFFFFF3E0) to Color(0xFFEF6C00)
-        PriorityLevel.LOW -> Color(0xFFE3F2FD) to Color(0xFF1565C0)
+        PriorityLevel.LOW -> Color(0xFFE3F2FD) to Color(0xFF1976D2) // Updated to match dialog blue
         PriorityLevel.NONE -> Color(0xFFF5F5F5) to Color(0xFF616161)
     }
 
@@ -120,7 +120,7 @@ private fun RuleItemCardPreview() {
         name = "Client Emails",
         ruleType = RuleType.SENDER_CONTAINS,
         matchPattern = "@client.com",
-        priorityLevel = PriorityLevel.HIGH,
+        priorityLevel = PriorityLevel.LOW,
         isEnabled = true
     )
     MaterialTheme {
