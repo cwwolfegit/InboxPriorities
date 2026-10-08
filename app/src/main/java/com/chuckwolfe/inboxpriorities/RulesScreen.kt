@@ -22,16 +22,18 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RulesScreen(
+    modifier: Modifier = Modifier,
     billingViewModel: BillingViewModel,
     rules: List<PriorityRule>,
-    ruleError: String?,
     onClearError: () -> Unit,
     onToggleRule: (PriorityRule, Boolean) -> Unit,
     onAddRule: (name: String, pattern: String, ruleType: RuleType, priorityLevel: PriorityLevel) -> Boolean,
     onUpdateRule: (oldRule: PriorityRule, newRule: PriorityRule) -> Boolean,
     onDeleteRule: (PriorityRule) -> Unit,
-    modifier: Modifier = Modifier,
-    freeRuleLimit: Int = 1
+    currentContactPriority: String = "NONE",
+    onContactPriorityChanged: (String) -> Unit = {},
+    freeRuleLimit: Int = 1,
+    ruleError: String? = null
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -40,6 +42,7 @@ fun RulesScreen(
     var ruleToEdit by remember { mutableStateOf<PriorityRule?>(null) }
     var ruleToDelete by remember { mutableStateOf<PriorityRule?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var contactDropdownExpanded by remember { mutableStateOf(false) }
 
     // Collect Pro status and price from the BillingViewModel
     val isPro by billingViewModel.isProUnlocked.collectAsState()
@@ -49,9 +52,7 @@ fun RulesScreen(
     val totalRulesCount = rules.size
     val isLimitReached = !isPro && totalRulesCount >= freeRuleLimit
 
-    // Dynamic colors for the main tier badge matching Accounts and Dashboard
-    val badgeBgColor = if (isPro) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer
-    val badgeTextColor = if (isPro) Color(0xFF2E7D32) else Color(0xFF8E0000)
+    val priorities = listOf("NONE", "LOW", "MEDIUM", "HIGH")
 
     // Filter rules based on searchQuery matching rule name or match pattern
     val filteredRules = remember(rules, searchQuery) {
@@ -65,7 +66,23 @@ fun RulesScreen(
         }
     }
 
+    // Sort filtered rules safely outside of any composable capture issues
+    val sortedRules = remember(filteredRules) {
+        filteredRules.sortedWith(
+            compareByDescending<PriorityRule> { it.isEnabled }
+                .thenByDescending { rule ->
+                    when (rule.priorityLevel) {
+                        PriorityLevel.HIGH -> 3
+                        PriorityLevel.MEDIUM -> 2
+                        PriorityLevel.LOW -> 1
+                        PriorityLevel.NONE -> 0
+                    }
+                }
+        )
+    }
+
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = {
@@ -113,159 +130,204 @@ fun RulesScreen(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                 )
                             }
-                         }
+                        }
                     }
                 }
             )
-        },
-        modifier = modifier
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Sub-header Section with Stacked Layout
-            Column(
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                    .weight(1f)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Active Count Badge
-                    Surface(
-                        color = if (isPro) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer,
-                        shape = MaterialTheme.shapes.extraLarge
+                // --- Global Android Contacts Priority Card ---
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Text(
-                            text = "$activeRulesCount / $totalRulesCount Active",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isPro) Color(0xFF2E7D32) else Color(0xFF8E0000),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Prioritize Emails Using Android Contacts",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isPro) "Applies fallback priority to incoming emails from your device contacts."
+                                else "Requires Pro Tier to customize (Locked to NONE).",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                    // High-visibility "+ Add Rule" Button
-                    Button(
-                        onClick = {
-                            if (!isLimitReached) {
-                                showAddDialog = true
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedButton(
+                                    onClick = {
+                                        if (isPro) {
+                                            contactDropdownExpanded = true
+                                        } else if (activity != null) {
+                                            billingViewModel.buyPro(activity)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(text = "Priority Level: $currentContactPriority ${if (!isPro) "🔒" else ""}")
+                                }
+
+                                DropdownMenu(
+                                    expanded = contactDropdownExpanded,
+                                    onDismissRequest = { contactDropdownExpanded = false }
+                                ) {
+                                    priorities.forEach { priority ->
+                                        DropdownMenuItem(
+                                            text = { Text(priority) },
+                                            onClick = {
+                                                onContactPriorityChanged(priority)
+                                                contactDropdownExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
                             }
-                        },
-                        enabled = !isLimitReached,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = "+ Add Rule",
-                            fontWeight = FontWeight.Bold
-                        )
+                        }
                     }
                 }
 
-                // Free tier limit warning on a separate line below
-                if (isLimitReached) {
-                    Text(
-                        text = "Free tier limit of $freeRuleLimit rule reached. Unlock Pro to add more.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
+                // --- Custom Rules Header & Actions ---
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Active Count Badge
+                            Surface(
+                                color = if (isPro) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.errorContainer,
+                                shape = MaterialTheme.shapes.extraLarge
+                            ) {
+                                Text(
+                                    text = "$activeRulesCount / $totalRulesCount Active Rules",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isPro) Color(0xFF2E7D32) else Color(0xFF8E0000),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
 
-            // Search Bar Component
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                placeholder = { Text("Search rules...") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search Icon"
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear Search"
+                            // High-visibility "+ Add Rule" Button
+                            Button(
+                                onClick = {
+                                    if (!isLimitReached) {
+                                        showAddDialog = true
+                                    }
+                                },
+                                enabled = !isLimitReached,
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = "+ Add Rule",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // Free tier limit warning on a separate line below
+                        if (isLimitReached) {
+                            Text(
+                                text = "Free tier limit of $freeRuleLimit rule reached. Unlock Pro to add more.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
                             )
                         }
                     }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
+                }
 
-            if (rules.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "No priority rules.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Tap '+ Add Rule' above to add one!",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else if (filteredRules.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No rules match \"$searchQuery\"",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                // Sort filtered rules: Enabled first, then HIGH -> MEDIUM -> LOW -> NONE
-                val sortedRules = remember(filteredRules) {
-                    filteredRules.sortedWith(
-                        compareByDescending<PriorityRule> { it.isEnabled }
-                            .thenByDescending { rule ->
-                                when (rule.priorityLevel) {
-                                    PriorityLevel.HIGH -> 3
-                                    PriorityLevel.MEDIUM -> 2
-                                    PriorityLevel.LOW -> 1
-                                    PriorityLevel.NONE -> 0
+                // --- Search Bar Component ---
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Search rules...") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search Icon"
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear Search"
+                                    )
                                 }
                             }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
 
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
-                ) {
+                // --- Rules List Handling ---
+                if (rules.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "No custom priority rules.",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Tap '+ Add Rule' above to add one!",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                } else if (filteredRules.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No rules match \"$searchQuery\"",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
                     items(
                         items = sortedRules,
                         key = { rule -> rule.id }
@@ -348,7 +410,6 @@ fun RuleItemCard(
     val ruleTypeLabel = when (rule.ruleType) {
         RuleType.SENDER_CONTAINS -> "Sender contains"
         RuleType.SUBJECT_CONTAINS -> "Subject contains"
-        else -> rule.ruleType.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
     }
 
     val priorityColor = when (rule.priorityLevel) {
