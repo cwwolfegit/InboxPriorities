@@ -197,6 +197,7 @@ fun RulesScreen(
                                         DropdownMenuItem(
                                             text = { Text(priority) },
                                             onClick = {
+                                                android.util.Log.d("NBX_Debug_ContactPriority", "Dropdown item clicked: $priority")
                                                 onContactPriorityChanged(priority)
                                                 contactDropdownExpanded = false
                                             }

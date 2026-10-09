@@ -49,10 +49,11 @@ class MainViewModel(
     val contactPriority: StateFlow<String> = _contactPriority.asStateFlow()
 
     fun updateContactPriority(priority: String) {
+        android.util.Log.d("NBX_Debug_ContactPriority", "MainViewModel updating priority to: $priority")
         _contactPriority.value = priority
         prefs.edit().putString("contact_priority_level", priority).apply()
+        android.util.Log.d("NBX_Debug_ContactPriority", "Saved to SharedPreferences: ${prefs.getString("contact_priority_level", "NOT_FOUND")}")
     }
-
     val rules: StateFlow<List<PriorityRule>> = if (USE_MOCK_SCREENSHOT_DATA) {
         MutableStateFlow(
             listOf(
