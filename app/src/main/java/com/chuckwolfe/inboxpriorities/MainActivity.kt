@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
                 val emails by viewModel.emails.collectAsStateWithLifecycle()
                 val unreadCounts by viewModel.unreadCounts.collectAsStateWithLifecycle()
                 val unreadTodayCounts by viewModel.unreadTodayCounts.collectAsStateWithLifecycle()
+                val contactPriority by viewModel.contactPriority.collectAsStateWithLifecycle()
 
                 // Automatically triggers once accounts are loaded from disk storage on startup
                 val accountList by viewModel.accounts.collectAsState()
@@ -148,6 +149,10 @@ class MainActivity : ComponentActivity() {
                                     billingViewModel = billingViewModel,
                                     rules = rules,
                                     ruleError = ruleError,
+                                    currentContactPriority = contactPriority,
+                                    onContactPriorityChanged = { newPriority ->
+                                        viewModel.updateContactPriority(newPriority)
+                                    },
                                     onClearError = { viewModel.clearRuleError() },
                                     onToggleRule = { rule, isEnabled ->
                                         viewModel.toggleRule(rule, isEnabled)

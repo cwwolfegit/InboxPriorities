@@ -1,6 +1,7 @@
 package com.chuckwolfe.inboxpriorities
 
 import android.app.Activity
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -157,7 +158,7 @@ fun RulesScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Prioritize Emails Using Android Contacts",
+                                text = "Prioritize Emails Using Your Contacts",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -175,8 +176,12 @@ fun RulesScreen(
                                     onClick = {
                                         if (isPro) {
                                             contactDropdownExpanded = true
-                                        } else if (activity != null) {
-                                            billingViewModel.buyPro(activity)
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "Upgrade to Pro to use your Contacts as priority.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                     },
                                     modifier = Modifier.fillMaxWidth()

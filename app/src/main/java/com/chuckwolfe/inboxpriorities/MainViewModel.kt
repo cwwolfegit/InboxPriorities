@@ -43,6 +43,16 @@ class MainViewModel(
         hasLoadedAccountsOnStartup = false
         loadAllDefinedAccounts(getApplication(), force = true)
     }
+
+    // Global contact priority state initialized from persistent storage
+    private val _contactPriority = MutableStateFlow(prefs.getString("contact_priority_level", "NONE") ?: "NONE")
+    val contactPriority: StateFlow<String> = _contactPriority.asStateFlow()
+
+    fun updateContactPriority(priority: String) {
+        _contactPriority.value = priority
+        prefs.edit().putString("contact_priority_level", priority).apply()
+    }
+
     val rules: StateFlow<List<PriorityRule>> = if (USE_MOCK_SCREENSHOT_DATA) {
         MutableStateFlow(
             listOf(
@@ -180,6 +190,7 @@ class MainViewModel(
 
         android.util.Log.d("Debug_MainViewModelDebug", "MainViewModel initialized")
     }
+
     fun cacheGoogleToken(email: String, idToken: String) {
         android.util.Log.d("Debug_MainViewModel", "cacheGoogleToken called for email: '$email', token length: ${idToken.length}")
         if (email.isNotBlank() && idToken.isNotBlank()) {
@@ -667,10 +678,10 @@ class MainViewModel(
                     hasLoadedAccountsOnStartup = false
                     loadAllDefinedAccounts(getApplication())
                 } else {
-                    android.util.Log.e("OAuth", "Failed to exchange authorization code")
+                    android.util.Log.e("Debug_MainViewModel", "Exchange code for token failed.")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("OAuth", "Exception during code exchange", e)
+                android.util.Log.e("Debug_MainViewModel", "Exception during exchangeCodeForToken", e)
             }
         }
     }
