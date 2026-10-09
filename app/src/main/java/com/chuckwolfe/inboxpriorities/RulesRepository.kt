@@ -1,4 +1,4 @@
-package     com.chuckwolfe.inboxpriorities
+package com.chuckwolfe.inboxpriorities
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
@@ -20,6 +20,7 @@ class RulesRepository(private val context: Context) {
 
     private val RULES_KEY = stringPreferencesKey("saved_priority_rules")
     private val ACCOUNTS_KEY = stringPreferencesKey("saved_email_accounts")
+    private val CONTACT_PRIORITY_KEY = stringPreferencesKey("contact_priority")
 
     // --- RULES ---
 
@@ -70,15 +71,26 @@ class RulesRepository(private val context: Context) {
             preferences[ACCOUNTS_KEY] = jsonString
         }
     }
-    // Check if an active, non-NONE @Contacts rule exists
-    suspend fun hasActiveContactsRule(): Boolean {
-        val rules = rulesFlow.first()
-        return rules.any { rule ->
-            rule.isEnabled &&
-                    rule.priorityLevel != PriorityLevel.NONE &&
-                    (rule.matchPattern.contains("@Contacts", ignoreCase = true) ||
-                            rule.name.contains("@Contacts", ignoreCase = true))
+
+    // --- CONTACT PRIORITY SETTING ---
+
+    // Flow representing the current contact priority setting value (defaults to "NONE")
+    val contactPriorityFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[CONTACT_PRIORITY_KEY] ?: "NONE"
         }
+
+    // Save the updated contact priority setting
+    suspend fun saveContactPriority(priority: String) {
+        context.dataStore.edit { preferences ->
+            preferences[CONTACT_PRIORITY_KEY] = priority
+        }
+    }
+
+    // Check if contact priority is active (i.e. not "NONE")
+    suspend fun hasActiveContactPriority(): Boolean {
+        val priority = contactPriorityFlow.first()
+        return priority.uppercase() != "NONE"
     }
 
     // Default starter rules using named arguments to prevent positional mismatch
@@ -140,4 +152,5 @@ class RulesRepository(private val context: Context) {
                 false
             }
         }
-    }}
+    }
+}

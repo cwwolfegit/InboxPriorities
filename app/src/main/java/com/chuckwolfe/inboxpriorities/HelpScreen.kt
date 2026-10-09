@@ -118,7 +118,7 @@ val faqList = listOf(
     ),
     FaqItem(
         question = "Q: Can I use my Gmail and Outlook contacts to prioritize emails?",
-        answer = "A: Yes, the pro tier allows you to do this by adding a special priority rule using \"@Contacts\" as the rule name. Any email address found in your contacts list will be prioritized. You can override the \"@Contacts\" priority by setting up specific priority rules for specific email addresses."
+        answer = "A: Yes, the pro tier allows you to use your phone contacts.  Set the \"Contacts\" to the desired priority. Any email address found in your contacts list will be prioritized. You can override the \"Contacts\" priority by setting up specific priority rules for specific email addresses."
     ),
     FaqItem(
         question = "Q: How does Inbox Priorities recognize my contacts?",

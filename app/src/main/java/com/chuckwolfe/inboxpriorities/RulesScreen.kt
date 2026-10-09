@@ -55,6 +55,21 @@ fun RulesScreen(
 
     val priorities = listOf("NONE", "LOW", "MEDIUM", "HIGH")
 
+    // Color mapping for the global contact priority button
+    val priorityColor = when (currentContactPriority.uppercase()) {
+        "HIGH" -> Color(0xFFC62828)
+        "MEDIUM" -> Color(0xFFEF6C00)
+        "LOW" -> Color(0xFF1976D2)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    val priorityContainerColor = when (currentContactPriority.uppercase()) {
+        "HIGH" -> MaterialTheme.colorScheme.errorContainer
+        "MEDIUM" -> Color(0xFFFFE0B2)
+        "LOW" -> Color(0xFFE3F2FD)
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+
     // Filter rules based on searchQuery matching rule name or match pattern
     val filteredRules = remember(rules, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -172,7 +187,7 @@ fun RulesScreen(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Box(modifier = Modifier.fillMaxWidth()) {
-                                OutlinedButton(
+                                Button(
                                     onClick = {
                                         if (isPro) {
                                             contactDropdownExpanded = true
@@ -184,9 +199,17 @@ fun RulesScreen(
                                             ).show()
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = priorityContainerColor
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text(text = "Priority Level: $currentContactPriority ${if (!isPro) "🔒" else ""}")
+                                    Text(
+                                        text = "Priority Level: $currentContactPriority ${if (!isPro) "🔒" else ""}",
+                                        color = priorityColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
 
                                 DropdownMenu(

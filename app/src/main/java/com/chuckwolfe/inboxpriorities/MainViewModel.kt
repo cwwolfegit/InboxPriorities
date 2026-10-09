@@ -478,7 +478,7 @@ class MainViewModel(
                                         sortedEmails = emptyList()
                                     )
                                 } else {
-                                    // Load device contacts into cache so @Contacts rules can match successfully
+                                    // Load device contacts into cache so Contacts setting can match successfully
                                     ContactCache.loadDeviceContacts(context, account.emailAddress)
 
                                     val applicableRules = rules.value.filter { rule ->
@@ -505,6 +505,7 @@ class MainViewModel(
                                             subject = email.subject,
                                             rules = applicableRules,
                                             isPro = isPro.value,
+                                            contactPriority = contactPriority.value,
                                             isContact = { cleanedEmail ->
                                                 isContact(account.emailAddress, cleanedEmail)
                                             }

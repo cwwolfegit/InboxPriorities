@@ -44,7 +44,8 @@ fun DashboardScreen(
     rules: List<PriorityRule>,
     accounts: List<EmailAccount>,
     unreadCounts: Map<String, String>,
-    unreadTodayCounts: Map<String, String>
+    unreadTodayCounts: Map<String, String>,
+    contactPriority: String = "NONE"
 ) {
     val context = LocalContext.current
     val googleAuthHelper = remember { GoogleAuthHelper(context) }
@@ -539,7 +540,7 @@ fun DashboardScreen(
             }
         }
 
-        if (!hasActiveRules) {
+        if (!hasActiveRules && contactPriority.uppercase() == "NONE") {
             item {
                 Card(
                     colors = CardDefaults.cardColors(
