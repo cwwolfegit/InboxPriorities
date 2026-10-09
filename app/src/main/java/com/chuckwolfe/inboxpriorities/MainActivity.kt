@@ -51,16 +51,8 @@ class MainActivity : ComponentActivity() {
         println("DEBUG_START: Entering onCreate()")
         super.onCreate(savedInstanceState)
 
-        // --- RUN GMAIL DIAGNOSTIC TEST HERE ---
-        //lifecycleScope.launch {
-        //val token = "YOUR_TEST_OAUTH_TOKEN_HERE" // Or look up your active token here
-        //GmailDiagnostic().runDiagnostic(token)
-        //}
-        // -------------------------------------
-
         // Intercept redirect if app was launched via the OAuth intent
         handleOAuthRedirect(intent)
-
 
         setContent {
             InboxPrioritiesTheme {
@@ -71,9 +63,6 @@ class MainActivity : ComponentActivity() {
                 val unreadCounts by viewModel.unreadCounts.collectAsStateWithLifecycle()
                 val unreadTodayCounts by viewModel.unreadTodayCounts.collectAsStateWithLifecycle()
                 val contactPriority by viewModel.contactPriority.collectAsStateWithLifecycle()
-
-                // Automatically triggers once accounts are loaded from disk storage on startup
-                val accountList by viewModel.accounts.collectAsState()
 
                 LaunchedEffect(Unit) {
                     viewModel.loadAllDefinedAccounts(context = this@MainActivity)
@@ -129,10 +118,13 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             AppTab.ACCOUNTS -> {
+                                val accountError by viewModel.accountError.collectAsState()
                                 AccountsScreen(
                                     viewModel = viewModel,
                                     billingViewModel = billingViewModel,
                                     accounts = accounts,
+                                    accountError = accountError,
+                                    onClearError = { viewModel.clearAccountError() },
                                     onAddAccount = { email, nickname, provider ->
                                         viewModel.addAccount(email, nickname, provider)
                                     },
@@ -200,16 +192,12 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         handleOAuthRedirect(intent)
     }
+
     private fun handleOAuthRedirect(intent: Intent) {
         val uri = intent.data
         if (uri != null && uri.scheme == "inboxpriorities" && uri.host == "oauth2redirect") {
-            val authorizationCode = uri.getQueryParameter("code")
             val error = uri.getQueryParameter("error")
-
-            if (!authorizationCode.isNullOrEmpty()) {
-                intent.data = null
-                viewModel.exchangeCodeForToken(authorizationCode)
-            } else if (!error.isNullOrEmpty()) {
+            if (!error.isNullOrEmpty()) {
                 android.util.Log.e("OAuth", "Authorization failed: $error")
             }
         }

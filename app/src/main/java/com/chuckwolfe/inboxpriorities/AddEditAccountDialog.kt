@@ -1,4 +1,4 @@
-package     com.chuckwolfe.inboxpriorities
+package com.chuckwolfe.inboxpriorities
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -11,6 +11,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun AddEditAccountDialog(
     accountToEdit: EmailAccount? = null,
+    accountError: String? = null,
+    onClearError: () -> Unit,
     onDismissRequest: () -> Unit,
     onSaveAccount: (email: String, nickname: String, provider: AccountProvider) -> Unit
 ) {
@@ -22,8 +24,18 @@ fun AddEditAccountDialog(
     val isEmailValid = email.isNotBlank() && email.contains("@")
     val isEditing = accountToEdit != null
 
+    // Clear error when typing a new email
+    LaunchedEffect(email) {
+        if (!accountError.isNullOrBlank()) {
+            onClearError()
+        }
+    }
+
     AlertDialog(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = {
+            onClearError()
+            onDismissRequest()
+        },
         title = {
             Text(
                 text = if (isEditing) "Edit Email Account" else "Add Email Account",
@@ -54,6 +66,16 @@ fun AddEditAccountDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                // Display error message if duplicate or invalid
+                if (!accountError.isNullOrBlank()) {
+                    Text(
+                        text = accountError,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
 
                 // Provider Dropdown
                 ExposedDropdownMenuBox(
@@ -103,7 +125,12 @@ fun AddEditAccountDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismissRequest) {
+            TextButton(
+                onClick = {
+                    onClearError()
+                    onDismissRequest()
+                }
+            ) {
                 Text("Cancel")
             }
         }

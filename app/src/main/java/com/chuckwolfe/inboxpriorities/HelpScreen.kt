@@ -118,7 +118,7 @@ val faqList = listOf(
     ),
     FaqItem(
         question = "Q: Can I use my Gmail and Outlook contacts to prioritize emails?",
-        answer = "A: Yes, the pro tier allows you to use your phone contacts.  Set the \"Contacts\" to the desired priority. Any email address found in your contacts list will be prioritized. You can override the \"Contacts\" priority by setting up specific priority rules for specific email addresses."
+        answer = "A: Yes, the pro tier allows you to use your phone contacts.  Set the \"Contacts rule\" to the desired priority. Any email address found in your contacts list will be prioritized. You can override the \"Contacts\" priority by setting up specific priority rules for specific email addresses."
     ),
     FaqItem(
         question = "Q: How does Inbox Priorities recognize my contacts?",
@@ -129,6 +129,18 @@ val faqList = listOf(
         answer = "A: Yes. Because Inbox Priorities reads from your device's native address book, your contacts need to be synced down to your phone's storage:\n\n" +
                 "• Google Contacts: Usually syncs automatically with your Android device login.\n\n" +
                 "• Outlook Contacts: If you use the Microsoft Outlook app, you can ensure your contacts are visible to the device by opening Outlook, going to your account settings, and turning Sync Contacts ON. Alternatively, you can add your Outlook account directly under your Android device's Settings > Passwords & accounts and ensure contact synchronization is enabled."
+    ),
+    FaqItem(
+        question = "Q: How do I change the order of my accounts on the dashboard?",
+        answer = "A: You can easily reorder your accounts using the arrow controls located on the right side of each account card header. Simply tap the up arrow to move an account higher in the list, or the down arrow to move it lower."
+    ),
+    FaqItem(
+        question = "Q: Can I reorder accounts using drag-and-drop?",
+        answer = "A: No, drag-and-drop is not used for reordering. Account arrangement is handled exclusively through the manual up and down arrow buttons for precise and reliable control."
+    ),
+    FaqItem(
+        question = "Q: Are my custom account sorting preferences saved?",
+        answer = "A: Yes! Any changes you make to the order of your account cards are automatically saved and persisted, so your preferred layout remains intact every time you reopen the app."
     )
 )
 @OptIn(ExperimentalMaterial3Api::class)

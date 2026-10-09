@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 
@@ -281,6 +282,7 @@ fun DashboardScreen(
             }
         } else {
             items(filteredAccounts, key = { it.id }) { account ->
+                val index = accounts.indexOfFirst { it.id == account.id }
                 val accountEmails = priorityEmailsByAccount[account.emailAddress] ?: emptyList()
                 val isExpanded = expandedAccounts.contains(account.emailAddress)
                 val accountUnreadToday = unreadTodayCounts[account.emailAddress] ?: "0"
@@ -358,18 +360,71 @@ fun DashboardScreen(
                             }
                         }
 
-                        Text(
-                            text = titleText,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        // Header Row with Title and Reorder Controls
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = titleText,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
 
-                        if (account.nickname.isNotBlank()) {
-                            Text(
-                                text = account.emailAddress,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                                if (account.nickname.isNotBlank()) {
+                                    Text(
+                                        text = account.emailAddress,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            // Reordering controls (Move Up / Move Down with a Drag Handle)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = "Drag Handle",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+
+                                Column {
+                                    IconButton(
+                                        onClick = {
+                                            if (index > 0) {
+                                                val mutableList = accounts.toMutableList()
+                                                val item = mutableList.removeAt(index)
+                                                mutableList.add(index - 1, item)
+                                                viewModel.updateAccountOrder(mutableList)
+                                            }
+                                        },
+                                        enabled = index > 0,
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Text("▲", fontSize = 12.sp, color = if (index > 0) MaterialTheme.colorScheme.primary else Color.Gray)
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            if (index < accounts.size - 1) {
+                                                val mutableList = accounts.toMutableList()
+                                                val item = mutableList.removeAt(index)
+                                                mutableList.add(index + 1, item)
+                                                viewModel.updateAccountOrder(mutableList)
+                                            }
+                                        },
+                                        enabled = index < accounts.size - 1,
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Text("▼", fontSize = 12.sp, color = if (index < accounts.size - 1) MaterialTheme.colorScheme.primary else Color.Gray)
+                                    }
+                                }
+                            }
                         }
 
                         Row(
@@ -531,7 +586,10 @@ fun DashboardScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 displayedEmails.forEach { email ->
-                                    EmailCard(email = email)
+                                    EmailCard(
+                                        email = email,
+                                        onClick = { openEmailInbox(context, account.emailAddress) }
+                                    )
                                 }
                             }
                         }
@@ -566,9 +624,11 @@ fun DashboardScreen(
 }
 
 @Composable
-fun EmailCard(email: Email) {
+fun EmailCard(email: Email, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
@@ -577,7 +637,6 @@ fun EmailCard(email: Email) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Sender & Subject occupy the top area cleanly without side-clutter
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -592,14 +651,12 @@ fun EmailCard(email: Email) {
                 )
             }
 
-            // Email body preview snippet
             Text(
                 text = email.body,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Last line / Footer row: Email icon on the left, Priority Badge on the right
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

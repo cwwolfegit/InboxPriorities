@@ -110,6 +110,9 @@ class MainViewModel(
     private val _ruleError = MutableStateFlow<String?>(null)
     val ruleError: StateFlow<String?> = _ruleError.asStateFlow()
 
+    private val _accountError = MutableStateFlow<String?>(null)
+    val accountError: StateFlow<String?> = _accountError.asStateFlow()
+
     private val _priorityUnreadCounts = MutableStateFlow<Map<String, String>>(emptyMap())
     val priorityUnreadCounts: StateFlow<Map<String, String>> = _priorityUnreadCounts.asStateFlow()
 
@@ -276,24 +279,44 @@ class MainViewModel(
 
     // --- Account Management Functions ---
 
-    fun addAccount(email: String, nickname: String, provider: AccountProvider) {
-        viewModelScope.launch {
-            val existingAccount = accounts.value.find { it.emailAddress.equals(email, ignoreCase = true) }
+    fun clearAccountError() {
+        _accountError.value = null
+    }
 
-            if (existingAccount == null) {
-                val newAccount = EmailAccount(
-                    id = UUID.randomUUID().toString(),
-                    emailAddress = email,
-                    nickname = nickname,
-                    provider = provider
-                )
-                val updatedList = accounts.value + newAccount
-                repository.saveAccounts(updatedList)
-                android.util.Log.d("Debug_MainViewModel", "Added new account: $email")
-            } else {
-                android.util.Log.d("Debug_MainViewModel", "Account already exists: $email. Skipping duplicate insertion.")
-            }
+    fun addAccount(email: String, nickname: String, provider: AccountProvider): Boolean {
+        val isDuplicate = accounts.value.any { it.emailAddress.equals(email, ignoreCase = true) }
+
+        if (isDuplicate) {
+            _accountError.value = "An account with this email address already exists."
+            android.util.Log.d("Debug_MainViewModel", "Account already exists: $email. Skipping duplicate insertion.")
+            return false // Save blocked
         }
+
+        _accountError.value = null
+
+        viewModelScope.launch {
+            val newAccount = EmailAccount(
+                id = UUID.randomUUID().toString(),
+                emailAddress = email,
+                nickname = nickname,
+                provider = provider
+            )
+            val updatedList = accounts.value + newAccount
+            repository.saveAccounts(updatedList)
+            android.util.Log.d("Debug_MainViewModel", "Added new account: $email")
+        }
+        return true // Save succeeded
+    }
+
+    fun updateAccountOrder(newOrder: List<EmailAccount>) {
+        viewModelScope.launch {
+            repository.saveAccounts(newOrder)
+        }
+    }
+
+    fun retryAccountAuth(email: String, newToken: String, context: Context) {
+        cacheGoogleToken(email, newToken)
+        loadAllDefinedAccounts(context, force = true)
     }
 
     fun removeAccount(accountId: String) {
@@ -645,45 +668,6 @@ class MainViewModel(
             if (allowedEmails.contains(acc.name) && !activeGoogleAccounts.containsKey(acc.name)) {
                 activeGoogleAccounts[acc.name] = GoogleSignInAccount.fromAccount(acc)
                 android.util.Log.d("Debug_MainViewModel", "Auto-mapped allowed account: ${acc.name}")
-            }
-        }
-    }
-
-    fun refreshCountsIfNeeded(context: Context) {
-        if (_unreadCounts.value.isEmpty() && accounts.value.isNotEmpty()) {
-            loadAllDefinedAccounts(context)
-        }
-    }
-
-    fun retryAccountAuth(email: String, newToken: String, context: Context) {
-        if (email.isNotBlank() && newToken.isNotBlank()) {
-            cacheGoogleToken(email, newToken)
-
-            _accountErrors.value = _accountErrors.value.toMutableMap().apply {
-                remove(email)
-            }
-
-            hasLoadedAccountsOnStartup = false
-
-            viewModelScope.launch {
-                loadAllDefinedAccounts(context)
-            }
-        }
-    }
-
-    fun exchangeCodeForToken(authorizationCode: String) {
-        viewModelScope.launch {
-            try {
-                val success = repository.exchangeAuthorizationCode(authorizationCode)
-
-                if (success) {
-                    hasLoadedAccountsOnStartup = false
-                    loadAllDefinedAccounts(getApplication())
-                } else {
-                    android.util.Log.e("Debug_MainViewModel", "Exchange code for token failed.")
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("Debug_MainViewModel", "Exception during exchangeCodeForToken", e)
             }
         }
     }
