@@ -278,9 +278,25 @@ fun AccountsScreen(
                 showAddDialog = false
             },
             onSaveAccount = { email, nickname, provider ->
-                // Check if adding succeeds; if it's a duplicate, addAccount returns false and shows the error
-                val success = viewModel.addAccount(email, nickname, provider)
-                if (success) {
+                if (provider == AccountProvider.OUTLOOK) {
+                    // For Outlook: Use addAccount which checks for duplicates and returns false if it already exists
+                    val success = viewModel.addAccount(email, nickname, provider)
+                    if (!success) {
+                        // Duplicate found; addAccount set the error, keep dialog open
+                        return@AddEditAccountDialog
+                    }
+
+                    onClearError()
+                    showAddDialog = false
+                    viewModel.loadAllDefinedAccounts(context)
+                } else {
+                    // For Gmail: Check duplicate first, then authenticate
+                    val isDuplicate = accounts.any { it.emailAddress.equals(email.trim(), ignoreCase = true) }
+                    if (isDuplicate) {
+                        viewModel.addAccount(email, nickname, provider) // triggers duplicate error state
+                        return@AddEditAccountDialog
+                    }
+
                     onClearError()
                     showAddDialog = false
 
@@ -289,88 +305,55 @@ fun AccountsScreen(
                             var targetEmail = email
                             var targetNickname = nickname
 
-                            if (provider == AccountProvider.GMAIL) {
-                                android.util.Log.d("Debug_Auth", "Attempting to create credential request for Gmail...")
-                                val request = authHelper.createCredentialRequest()
+                            val request = authHelper.createCredentialRequest()
+                            val result = authHelper.manager.getCredential(context = context, request = request)
+                            val credential = result.credential
 
-                                android.util.Log.d("Debug_Auth", "Calling getCredential...")
-                                val result = authHelper.manager.getCredential(
-                                    context = context,
-                                    request = request
-                                )
-                                val credential = result.credential
+                            if (credential is androidx.credentials.CustomCredential &&
+                                credential.type == com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                            ) {
+                                val googleIdTokenCredential = com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(credential.data)
+                                targetEmail = googleIdTokenCredential.id
+                                val userDisplayName = googleIdTokenCredential.displayName ?: "Gmail Account"
+                                if (targetNickname.isBlank()) {
+                                    targetNickname = userDisplayName
+                                }
 
-                                if (credential is androidx.credentials.CustomCredential &&
-                                    credential.type == com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-                                ) {
-                                    val googleIdTokenCredential = com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(credential.data)
-                                    targetEmail = googleIdTokenCredential.id
-                                    val userDisplayName = googleIdTokenCredential.displayName ?: "Gmail Account"
-                                    if (targetNickname.isBlank()) {
-                                        targetNickname = userDisplayName
-                                    }
+                                pendingEmail = targetEmail
+                                pendingNickname = targetNickname
+                                pendingProvider = provider
 
-                                    android.util.Log.d("Debug_Auth", "Successfully retrieved Google account for: $targetEmail")
-
-                                    // Store pending variables in case consent resolution is required
-                                    pendingEmail = targetEmail
-                                    pendingNickname = targetNickname
-                                    pendingProvider = provider
-
-                                    val authRequest = authHelper.createAuthorizationRequest(targetEmail)
-                                    authHelper.authClient.authorize(authRequest)
-                                        .addOnSuccessListener { authorizationResult ->
-                                            android.util.Log.d("Debug_Auth", "Authorization result received successfully!")
-
-                                            if (authorizationResult.hasResolution() && authorizationResult.pendingIntent != null) {
-                                                android.util.Log.d("Debug_Auth", "Consent resolution required. Launching resolution intent...")
-                                                try {
-                                                    val intentSenderRequest = IntentSenderRequest.Builder(
-                                                        authorizationResult.pendingIntent!!.intentSender
-                                                    ).build()
-                                                    resolutionLauncher.launch(intentSenderRequest)
-                                                } catch (e: Exception) {
-                                                    android.util.Log.e("Debug_Auth", "Failed to launch resolution intent", e)
-                                                }
-                                            } else {
-                                                val accessToken = authorizationResult.accessToken
-                                                if (!accessToken.isNullOrEmpty()) {
-                                                    android.util.Log.d("Debug_Auth", "Successfully obtained Gmail OAuth Access Token directly")
-                                                    viewModel.cacheGoogleToken(targetEmail, accessToken)
-
-                                                    val finalNickname = targetNickname.ifBlank { targetEmail }
-                                                    onAddAccount(targetEmail, finalNickname, provider)
-                                                    viewModel.loadAllDefinedAccounts(context)
-                                                } else {
-                                                    android.util.Log.e("Debug_Auth", "Authorization succeeded but access token was null/empty and no resolution was provided")
-                                                }
+                                val authRequest = authHelper.createAuthorizationRequest(targetEmail)
+                                authHelper.authClient.authorize(authRequest)
+                                    .addOnSuccessListener { authorizationResult ->
+                                        if (authorizationResult.hasResolution() && authorizationResult.pendingIntent != null) {
+                                            try {
+                                                val intentSenderRequest = IntentSenderRequest.Builder(
+                                                    authorizationResult.pendingIntent!!.intentSender
+                                                ).build()
+                                                resolutionLauncher.launch(intentSenderRequest)
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                            }
+                                        } else {
+                                            val accessToken = authorizationResult.accessToken
+                                            if (!accessToken.isNullOrEmpty()) {
+                                                viewModel.cacheGoogleToken(targetEmail, accessToken)
+                                                val finalNickname = targetNickname.ifBlank { targetEmail }
+                                                onAddAccount(targetEmail, finalNickname, provider)
+                                                viewModel.loadAllDefinedAccounts(context)
                                             }
                                         }
-                                        .addOnFailureListener { e ->
-                                            android.util.Log.e("Debug_Auth", "Failed to obtain Gmail authorization token", e)
-                                        }
-                                } else {
-                                    android.util.Log.d("Debug_Auth", "Credential type mismatch or not a Google ID token credential.")
-                                }
-                            } else {
-                                // Non-Gmail providers
-                                if (targetEmail.isNotBlank()) {
-                                    val finalNickname = targetNickname.ifBlank { targetEmail }
-                                    onAddAccount(targetEmail, finalNickname, provider)
-                                    viewModel.loadAllDefinedAccounts(context)
-                                }
+                                    }
                             }
                         } catch (e: Exception) {
                             e.printStackTrace()
-                            android.util.Log.e("Debug_Auth", "Credential Manager failed with exception: ${e.localizedMessage}", e)
                         }
                     }
                 }
             }
         )
-    }
-
-    // --- Edit Account Dialog ---
+    }    // --- Edit Account Dialog ---
     accountToEdit?.let { targetAccount ->
         AddEditAccountDialog(
             accountToEdit = targetAccount,

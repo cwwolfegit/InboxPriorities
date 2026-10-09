@@ -139,6 +139,14 @@ val faqList = listOf(
         answer = "A: No, drag-and-drop is not used for reordering. Account arrangement is handled exclusively through the manual up and down arrow buttons for precise and reliable control."
     ),
     FaqItem(
+        question = "Q: Why does Outlook require a 'Tap to Sign-in' step while Gmail authenticates new accounts when added?",
+        answer = "A: Gmail utilizes Android Credential Manager for native background login, whereas Outlook uses a secure browser redirect flow that requires an explicit authorization step to exchange tokens."
+    ),
+    FaqItem(
+        question = "Q: What should I do if an account shows 'Sign-in Expired'?",
+        answer = "A: OAuth tokens can occasionally expire or be revoked. Simply tap the account card or re-authenticate to refresh your token and automatically resume email syncing."
+    ),
+    FaqItem(
         question = "Q: Are my custom account sorting preferences saved?",
         answer = "A: Yes! Any changes you make to the order of your account cards are automatically saved and persisted, so your preferred layout remains intact every time you reopen the app."
     )
