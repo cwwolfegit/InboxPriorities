@@ -21,6 +21,11 @@ import android.net.Uri
 import android.content.ActivityNotFoundException
 import android.widget.Toast
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
 enum class AppTab {
     DASHBOARD,
     ACCOUNTS,
@@ -192,13 +197,70 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         handleOAuthRedirect(intent)
     }
-
     private fun handleOAuthRedirect(intent: Intent) {
         val uri = intent.data
         if (uri != null && uri.scheme == "inboxpriorities" && uri.host == "oauth2redirect") {
             val error = uri.getQueryParameter("error")
             if (!error.isNullOrEmpty()) {
                 android.util.Log.e("OAuth", "Authorization failed: $error")
+                Toast.makeText(this, "Sign-in failed: $error", Toast.LENGTH_LONG).show()
+                return
+            }
+
+            val code = uri.getQueryParameter("code")
+            if (!code.isNullOrEmpty()) {
+                android.util.Log.d("OAuth", "Received authorization code, exchanging for token...")
+
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    try {
+                        val prefs = getSharedPreferences("AuthPrefs", android.content.Context.MODE_PRIVATE)
+                        val codeVerifier = prefs.getString("code_verifier", null) ?: MicrosoftAuthHelper.getSavedVerifier()
+
+                        if (codeVerifier.isNullOrEmpty()) {
+                            android.util.Log.e("OAuth", "Code verifier is missing!")
+                            return@launch
+                        }
+
+                        val client = okhttp3.OkHttpClient()
+                        val requestBody = okhttp3.FormBody.Builder()
+                            .add("client_id", "6c306dd0-6ac1-4811-8af8-578861b2c5bb")
+                            .add("scope", "https://graph.microsoft.com/Mail.Read offline_access")
+                            .add("code", code)
+                            .add("redirect_uri", "inboxpriorities://oauth2redirect")
+                            .add("grant_type", "authorization_code")
+                            .add("code_verifier", codeVerifier)
+                            .build()
+
+                        val request = okhttp3.Request.Builder()
+                            .url("https://login.microsoftonline.com/common/oauth2/v2.0/token")
+                            .post(requestBody)
+                            .build()
+
+                        client.newCall(request).execute().use { response ->
+                            if (!response.isSuccessful) {
+                                val errorBody = response.body?.string()
+                                android.util.Log.e("OAuth", "Token exchange failed: ${response.code} - $errorBody")
+                                return@use
+                            }
+
+                            val responseString = response.body?.string()
+                            val jsonObject = com.google.gson.Gson().fromJson(responseString, com.google.gson.JsonObject::class.java)
+                            val accessToken = jsonObject.get("access_token")?.asString
+
+                            if (!accessToken.isNullOrEmpty()) {
+                                prefs.edit().putString("microsoft_access_token", accessToken).apply()
+                                android.util.Log.d("OAuth", "Successfully acquired and saved microsoft_access_token!")
+
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    Toast.makeText(this@MainActivity, "Outlook signed in successfully!", Toast.LENGTH_SHORT).show()
+                                    viewModel.loadAllDefinedAccounts(this@MainActivity, force = true)
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("OAuth", "Exception during token exchange", e)
+                    }
+                }
             }
         }
     }
