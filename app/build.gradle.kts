@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.chuckwolfe.inboxpriorities"
+    namespace = "com.polotech.inboxpriorities"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -14,11 +14,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.chuckwolfe.inboxpriorities"
+        applicationId = "com.polotech.inboxpriorities"
         minSdk = 26
         targetSdk = 36
-        versionCode = 18
-        versionName = "1.0.18"
+        versionCode = 19
+        versionName = "1.0.19"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
