@@ -10,7 +10,7 @@ import java.net.URLEncoder
 
 object MicrosoftAuthHelper {
     private const val CLIENT_ID = "6c306dd0-6ac1-4811-8af8-578861b2c5bb"
-    private const val REDIRECT_URI = "com.polotech.inboxpriorities://oauth2redirect"
+    private const val REDIRECT_URI = "msauth://com.polotech.inboxpriorities/T0f9SJ%2B5NRYcNFUbDsBC%2Fv0fUEk%3D"
 
     private var currentCodeVerifier: String? = null
 

@@ -196,7 +196,7 @@ class MainActivity : ComponentActivity() {
     }
     private fun handleOAuthRedirect(intent: Intent) {
         val uri = intent.data
-        if (uri != null && uri.scheme == "com.polotech.inboxpriorities" && uri.host == "oauth2redirect") {
+        if (uri != null && uri.scheme == "msauth" && uri.host == "com.polotech.inboxpriorities") {
             val error = uri.getQueryParameter("error")
             if (!error.isNullOrEmpty()) {
                 android.util.Log.e("OAuth", "Authorization failed: $error")
@@ -223,7 +223,7 @@ class MainActivity : ComponentActivity() {
                             .add("client_id", "6c306dd0-6ac1-4811-8af8-578861b2c5bb")
                             .add("scope", "https://graph.microsoft.com/Mail.Read offline_access")
                             .add("code", code)
-                            .add("redirect_uri", "com.polotech.inboxpriorities://oauth2redirect")
+                            .add("redirect_uri", "msauth://com.polotech.inboxpriorities/T0f9SJ%2B5NRYcNFUbDsBC%2Fv0fUEk%3D")
                             .add("grant_type", "authorization_code")
                             .add("code_verifier", codeVerifier)
                             .build()

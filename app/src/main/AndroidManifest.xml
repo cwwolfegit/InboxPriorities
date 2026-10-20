@@ -37,9 +37,13 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
+                <!--<data
                     android:scheme="inboxpriorities"
-                    android:host="oauth2redirect" />
+                    android:host="oauth2redirect" />-->
+                <data
+                    android:scheme="msauth"
+                    android:host="com.polotech.inboxpriorities"
+                    android:path="/T0f9SJ+5NRYcNFUbDsBC/v0fUEk=" />
             </intent-filter>
         </activity>
     </application>
