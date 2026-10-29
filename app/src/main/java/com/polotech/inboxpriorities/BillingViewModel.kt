@@ -42,18 +42,36 @@ class BillingViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
-
     fun buyPro(activity: Activity) {
-        val details = cachedProductDetails
-        if (details != null) {
-            billingManager.launchPurchaseFlow(activity, details)
-        } else {
-            // Fallback for local testing so you know why it didn't launch
-            android.widget.Toast.makeText(
-                getApplication(),
-                "Product details not loaded. Check Play Console SKU configuration.",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+        // 1. Check if the user already bought Pro previously
+        billingManager.checkExistingPurchases { hasPurchased ->
+            if (hasPurchased) {
+                // Restore Pro state and update local preferences
+                _isProUnlocked.value = true
+                getApplication<Application>()
+                    .getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("is_pro_unlocked", true)
+                    .apply()
+
+                android.widget.Toast.makeText(
+                    getApplication(),
+                    "Pro tier restored!",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                // 2. No purchase found: proceed with standard purchase flow
+                val details = cachedProductDetails
+                if (details != null) {
+                    billingManager.launchPurchaseFlow(activity, details)
+                } else {
+                    android.widget.Toast.makeText(
+                        getApplication(),
+                        "Product details not loaded. Check Play Console SKU configuration.",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
     }
 }

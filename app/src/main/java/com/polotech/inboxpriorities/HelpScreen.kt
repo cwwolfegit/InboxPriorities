@@ -146,6 +146,10 @@ val faqList = listOf(
         answer = "A: OAuth tokens can occasionally expire or be revoked. Simply tap the account card or re-authenticate to refresh your token and automatically resume email syncing."
     ),
     FaqItem(
+        question = "What happens to my priority rules and settings if I get a new phone?",
+        answer = "A: As long as Android Backup is enabled on your device, your monitored email addresses, custom priority rules, and preferences are automatically restored when you install Inbox Priorities on your new phone using the same Google Account."
+    ),
+    FaqItem(
         question = "Q: Are my custom account sorting preferences saved?",
         answer = "A: Yes! Any changes you make to the order of your account cards are automatically saved and persisted, so your preferred layout remains intact every time you reopen the app."
     )
