@@ -573,6 +573,17 @@ class MainViewModel(
                                 )
                                 null
                             }
+                        } catch (e: AuthExpiredException) {
+                            android.util.Log.w("Debug_MainViewModel", "Auth expired for ${account.emailAddress}: ${e.message}")
+                            AccountFetchResult(
+                                emailAddress = account.emailAddress,
+                                error = "Sign-in Expired",
+                                formattedCount = null,
+                                unreadTodayStr = null,
+                                totalPriorityStr = null,
+                                todayPriorityStr = null,
+                                sortedEmails = emptyList()
+                            )
                         } catch (e: Exception) {
                             android.util.Log.e("Debug_MainViewModel", "Exception caught while processing account ${account.emailAddress}", e)
                             AccountFetchResult(

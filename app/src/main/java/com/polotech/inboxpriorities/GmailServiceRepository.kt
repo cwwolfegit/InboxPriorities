@@ -13,6 +13,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import com.google.gson.GsonBuilder
 
+class AuthExpiredException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 class GmailServiceRepository(
     private val context: Context,
@@ -106,7 +107,10 @@ class GmailServiceRepository(
         val emailList = mutableListOf<Email>()
         Log.d(TAG, "fetchRecentEmails called for $emailAddress")
 
-        val service = getGmailService() ?: return@withContext emptyList()
+        val service = getGmailService() ?: run {
+            Log.e(TAG, "Token expired or missing for $emailAddress in fetchRecentEmails")
+            throw AuthExpiredException("Token missing for $emailAddress")
+        }
 
         try {
             val response = service.users().messages().list("me")
@@ -148,7 +152,7 @@ class GmailServiceRepository(
         } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
             if (e.statusCode == 401) {
                 Log.e(TAG, "Authentication expired (401) for $emailAddress in fetchRecentEmails")
-                // Handle 401 specifically (e.g., return empty or a distinct error marker)
+                throw AuthExpiredException("Authentication expired (401) for $emailAddress", e)
             } else {
                 Log.e(TAG, "Google JSON exception in fetchRecentEmails for $emailAddress: ${e.message}", e)
             }
@@ -162,7 +166,10 @@ class GmailServiceRepository(
 
     override suspend fun getUnreadInboxCount(): Pair<Int, Boolean> = withContext(Dispatchers.IO) {
         Log.d(TAG, "getUnreadInboxCount called for $emailAddress")
-        val service = getGmailService() ?: return@withContext Pair(0, false)
+        val service = getGmailService() ?: run {
+            Log.e(TAG, "Token expired or missing for $emailAddress in getUnreadInboxCount")
+            throw AuthExpiredException("Token missing for $emailAddress")
+        }
 
         try {
             val response = service.users().threads().list("me")
@@ -190,9 +197,7 @@ class GmailServiceRepository(
         } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
             if (e.statusCode == 401) {
                 Log.e(TAG, "Authentication expired (401) for $emailAddress")
-                // You can return a special indicator or throw a custom AuthException
-                // so your ViewModel knows to display a "Sign-in expired" warning.
-                return@withContext Pair(-1, false) // Using -1 as an error flag for count
+                throw AuthExpiredException("Authentication expired (401) for $emailAddress", e)
             } else {
                 Log.e(TAG, "Google JSON exception in getUnreadInboxCount for $emailAddress: ${e.message}", e)
                 return@withContext Pair(0, false)
@@ -206,7 +211,10 @@ class GmailServiceRepository(
 
     override suspend fun getUnreadTodayCount(): Int = withContext(Dispatchers.IO) {
         Log.d(TAG, "getUnreadTodayCount called for $emailAddress")
-        val service = getGmailService() ?: return@withContext 0
+        val service = getGmailService() ?: run {
+            Log.e(TAG, "Token expired or missing for $emailAddress in getUnreadTodayCount")
+            throw AuthExpiredException("Token missing for $emailAddress")
+        }
 
         try {
             val todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
@@ -221,7 +229,7 @@ class GmailServiceRepository(
         } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
             if (e.statusCode == 401) {
                 Log.e(TAG, "Authentication expired (401) for $emailAddress in getUnreadTodayCount")
-                return@withContext -1
+                throw AuthExpiredException("Authentication expired (401) for $emailAddress", e)
             } else {
                 Log.e(TAG, "Google JSON exception in getUnreadTodayCount for $emailAddress: ${e.message}", e)
                 return@withContext 0
