@@ -1,5 +1,7 @@
 package com.polotech.inboxpriorities
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +23,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -154,6 +157,7 @@ val faqList = listOf(
         answer = "A: Yes! Any changes you make to the order of your account cards are automatically saved and persisted, so your preferred layout remains intact every time you reopen the app."
     )
 )
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelpScreen(
@@ -161,6 +165,7 @@ fun HelpScreen(
 ) {
     var isFaqExpanded by remember { mutableStateOf(false) }
     var faqSearchQuery by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     // Filter FAQ list based on search query matching question or answer
     val filteredFaqList = remember(faqSearchQuery) {
@@ -283,7 +288,19 @@ fun HelpScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = onContactSupportClick
+                    onClick = {
+                        try {
+                            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                            val versionName = packageInfo.versionName ?: "1.0"
+                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                data = Uri.parse("mailto:")
+                                putExtra(Intent.EXTRA_SUBJECT, "Inbox Priorities Support - v$versionName")
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            onContactSupportClick()
+                        }
+                    }
                 ) {
                     Row(
                         modifier = Modifier
@@ -307,7 +324,6 @@ fun HelpScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(text = "About Inbox Priorities", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(4.dp))
-                        //Text(text = "Version 1.0.10")
                         Text(text = "Inbox Priorities lets you monitor your email inboxes for important messages using customizable sender and subject rules. The Dashboard displays unread priority-message counts for each configured inbox, along with total unread-message counts. Expand an inbox to preview its priority emails, then click any message to open it in your email client, where you can read and respond.")                    }
                 }
             }

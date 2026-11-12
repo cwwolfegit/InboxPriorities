@@ -1,10 +1,13 @@
 package com.polotech.inboxpriorities
 
+import android.util.Patterns
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -21,10 +24,14 @@ fun AddEditAccountDialog(
     var selectedProvider by remember { mutableStateOf(accountToEdit?.provider ?: AccountProvider.GMAIL) }
     var expanded by remember { mutableStateOf(false) }
 
-    val isEmailValid = email.isNotBlank() && email.contains("@")
+    val trimmedEmail = email.trim()
+    val isEmailValid = trimmedEmail.isNotEmpty() &&
+            Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()
+    val showFormatError = trimmedEmail.isNotEmpty() && !isEmailValid
+    val hasError = !accountError.isNullOrBlank() || showFormatError
     val isEditing = accountToEdit != null
 
-    // Clear error when typing a new email
+    // Clear external error when typing a new email
     LaunchedEffect(email) {
         if (!accountError.isNullOrBlank()) {
             onClearError()
@@ -64,18 +71,20 @@ fun AddEditAccountDialog(
                     onValueChange = { email = it },
                     label = { Text("Email Address") },
                     singleLine = true,
+                    isError = hasError,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    supportingText = if (hasError) {
+                        {
+                            Text(
+                                text = accountError?.takeIf { it.isNotBlank() }
+                                    ?: "Enter a valid email address"
+                            )
+                        }
+                    } else {
+                        null
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
-
-                // Display error message if duplicate or invalid
-                if (!accountError.isNullOrBlank()) {
-                    Text(
-                        text = accountError,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
 
                 // Provider Dropdown
                 ExposedDropdownMenuBox(
@@ -116,7 +125,7 @@ fun AddEditAccountDialog(
             Button(
                 onClick = {
                     if (isEmailValid) {
-                        onSaveAccount(email.trim(), nickname.trim(), selectedProvider)
+                        onSaveAccount(trimmedEmail, nickname.trim(), selectedProvider)
                     }
                 },
                 enabled = isEmailValid

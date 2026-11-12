@@ -28,6 +28,7 @@ fun AddEditRuleDialog(
         title = { Text(text = if (isEditing) "Edit Priority Rule" else "Add Priority Rule") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Rule Name Field
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -36,14 +37,7 @@ fun AddEditRuleDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
-                    value = matchPattern,
-                    onValueChange = { matchPattern = it },
-                    label = { Text("Match Pattern (e.g. @client.com)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
+                // Rule Type Selector (Moved to top)
                 Text(
                     text = "Rule Type",
                     style = MaterialTheme.typography.labelLarge
@@ -61,6 +55,16 @@ fun AddEditRuleDialog(
                         label = { Text("Subject") }
                     )
                 }
+
+                // Match Pattern Field (Streamlined label without rigid examples)
+                OutlinedTextField(
+                    value = matchPattern,
+                    onValueChange = { matchPattern = it },
+                    label = { Text("Match Pattern") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 errorMessage?.let { error ->
                     Text(
                         text = error,

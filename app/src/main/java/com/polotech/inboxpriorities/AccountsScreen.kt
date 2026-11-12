@@ -278,28 +278,22 @@ fun AccountsScreen(
                 showAddDialog = false
             },
             onSaveAccount = { email, nickname, provider ->
-                if (provider == AccountProvider.OUTLOOK) {
-                    // For Outlook: Use addAccount which checks for duplicates and returns false if it already exists
-                    val success = viewModel.addAccount(email, nickname, provider)
-                    if (!success) {
-                        // Duplicate found; addAccount set the error, keep dialog open
-                        return@AddEditAccountDialog
-                    }
+                val isDuplicate = accounts.any { it.emailAddress.equals(email.trim(), ignoreCase = true) }
+                if (isDuplicate) {
+                    viewModel.addAccount(email, nickname, provider) // triggers duplicate error state
+                    return@AddEditAccountDialog
+                }
 
-                    onClearError()
-                    showAddDialog = false
+                onClearError()
+                showAddDialog = false
+
+                if (provider == AccountProvider.OUTLOOK) {
+                    val finalNickname = nickname.ifBlank { email }
+                    onAddAccount(email, finalNickname, provider)
                     viewModel.loadAllDefinedAccounts(context)
+                    MicrosoftAuthHelper.startLogin(context)
                 } else {
                     // For Gmail: Check duplicate first, then authenticate
-                    val isDuplicate = accounts.any { it.emailAddress.equals(email.trim(), ignoreCase = true) }
-                    if (isDuplicate) {
-                        viewModel.addAccount(email, nickname, provider) // triggers duplicate error state
-                        return@AddEditAccountDialog
-                    }
-
-                    onClearError()
-                    showAddDialog = false
-
                     coroutineScope.launch {
                         try {
                             var targetEmail = email
@@ -353,7 +347,9 @@ fun AccountsScreen(
                 }
             }
         )
-    }    // --- Edit Account Dialog ---
+    }
+
+    // --- Edit Account Dialog ---
     accountToEdit?.let { targetAccount ->
         AddEditAccountDialog(
             accountToEdit = targetAccount,
@@ -412,12 +408,9 @@ fun AccountManagementCard(
     onEdit: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val providerLabel = account.provider.name.lowercase().replaceFirstChar { it.uppercase() }
-    val accountNameText = if (account.nickname.isNotBlank()) {
-        "${account.nickname} ($providerLabel)"
-    } else {
-        providerLabel
-    }
+    val providerName = account.provider.name.lowercase().replaceFirstChar { it.uppercase() }
+    val displayName = account.nickname.ifBlank { account.emailAddress }
+    val isGmail = account.provider == AccountProvider.GMAIL
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -431,12 +424,33 @@ fun AccountManagementCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Line 1: Account Name / Nickname + Provider
-            Text(
-                text = accountNameText,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            // Line 1: Account Name/Nickname + Provider Badge
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+
+                // Provider Badge (S-02)
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isGmail) Color(0xFFE8F5E9) else Color(0xFFE3F2FD)
+                ) {
+                    Text(
+                        text = if (isGmail) "✉️ Gmail" else "📧 Outlook",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isGmail) Color(0xFF2E7D32) else Color(0xFF1565C0),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
 
             // Line 2: Email Address
             Text(
