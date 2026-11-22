@@ -2,18 +2,26 @@ package com.polotech.inboxpriorities
 
 import android.content.Context
 import android.util.Log
-import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.auth.oauth2.BearerToken
+import com.google.api.client.auth.oauth2.Credential
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.gmail.Gmail
+import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import com.google.gson.GsonBuilder
 
-class AuthExpiredException(message: String, cause: Throwable? = null) : Exception(message, cause)
+open class AuthExpiredException(message: String, cause: Throwable? = null) : Exception(message, cause)
+
+class AccountAuthException(
+    val title: String,
+    val reason: String,
+    val howToFix: String,
+    cause: Throwable? = null
+) : AuthExpiredException("$title: $reason", cause)
 
 class GmailServiceRepository(
     private val context: Context,
@@ -24,15 +32,52 @@ class GmailServiceRepository(
     override suspend fun fetchEmails(accountId: String): List<Email> {
         return fetchRecentEmails(50)
     }
+
     companion object {
         private const val TAG = "Debug_GmailRepo"
     }
 
-    private suspend fun getGmailService(): Gmail? {
+    private fun classifyHttpAuthException(e: GoogleJsonResponseException, operation: String): AccountAuthException {
+        val details = e.details?.message ?: e.message.orEmpty()
+        return when (e.statusCode) {
+            401 -> AccountAuthException(
+                title = "Not Signed In (Token Expired)",
+                reason = "Your sign-in session for $emailAddress expired or was rejected by Google ($operation).",
+                howToFix = "Sign in to $emailAddress again in the app to refresh your Gmail access token.",
+                cause = e
+            )
+            403 -> AccountAuthException(
+                title = "OAuth Permission Denied",
+                reason = if (details.isNotBlank()) {
+                    "Google blocked Gmail access for $emailAddress: $details"
+                } else {
+                    "Gmail read permission was not granted, was revoked, or OAuth access is restricted for $emailAddress."
+                },
+                howToFix = "Reconnect $emailAddress and approve Gmail read access. If testing, ensure this account is added as a test user and the Play Store SHA-1 is registered in Google Cloud Console.",
+                cause = e
+            )
+            else -> AccountAuthException(
+                title = "Gmail API Error (${e.statusCode})",
+                reason = details.ifBlank { "Google rejected the Gmail request for $emailAddress (HTTP ${e.statusCode})." },
+                howToFix = "Check your account connection and try reconnecting $emailAddress.",
+                cause = e
+            )
+        }
+    }
+
+    private fun missingTokenException(operation: String): AccountAuthException {
+        return AccountAuthException(
+            title = "Not Signed In",
+            reason = "No active sign-in token is available for $emailAddress ($operation).",
+            howToFix = "Sign in to $emailAddress so Inbox Priorities can access your inbox."
+        )
+    }
+
+    private suspend fun getGmailService(operation: String): Gmail {
         val currentToken = tokenProvider()
-        if (currentToken.isNullOrEmpty()) {
-            Log.e(TAG, "Token provider returned a null or empty token for $emailAddress")
-            return null
+        if (currentToken.isNullOrBlank()) {
+            Log.e(TAG, "Token provider returned a null or empty token for $emailAddress in $operation")
+            throw missingTokenException(operation)
         }
 
         val credential = Credential(
@@ -107,10 +152,7 @@ class GmailServiceRepository(
         val emailList = mutableListOf<Email>()
         Log.d(TAG, "fetchRecentEmails called for $emailAddress")
 
-        val service = getGmailService() ?: run {
-            Log.e(TAG, "Token expired or missing for $emailAddress in fetchRecentEmails")
-            throw AuthExpiredException("Token missing for $emailAddress")
-        }
+        val service = getGmailService("fetchRecentEmails")
 
         try {
             val response = service.users().messages().list("me")
@@ -149,16 +191,19 @@ class GmailServiceRepository(
                 )
             }
             Log.d(TAG, "Successfully parsed ${emailList.size} emails.")
-        } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
-            if (e.statusCode == 401) {
-                Log.e(TAG, "Authentication expired (401) for $emailAddress in fetchRecentEmails")
-                throw AuthExpiredException("Authentication expired (401) for $emailAddress", e)
-            } else {
-                Log.e(TAG, "Google JSON exception in fetchRecentEmails for $emailAddress: ${e.message}", e)
-            }
+        } catch (e: AccountAuthException) {
+            throw e
+        } catch (e: GoogleJsonResponseException) {
+            Log.e(TAG, "Google JSON exception (${e.statusCode}) in fetchRecentEmails for $emailAddress: ${e.message}", e)
+            throw classifyHttpAuthException(e, "loading recent emails")
         } catch (e: Exception) {
             Log.e(TAG, "Exception in fetchRecentEmails for $emailAddress: ${e.message}", e)
-            e.printStackTrace()
+            throw AccountAuthException(
+                title = "Gmail Sync Error",
+                reason = e.localizedMessage ?: "Failed to load recent emails for $emailAddress.",
+                howToFix = "Check your network connection and try reconnecting $emailAddress.",
+                cause = e
+            )
         }
 
         return@withContext emailList
@@ -166,10 +211,7 @@ class GmailServiceRepository(
 
     override suspend fun getUnreadInboxCount(): Pair<Int, Boolean> = withContext(Dispatchers.IO) {
         Log.d(TAG, "getUnreadInboxCount called for $emailAddress")
-        val service = getGmailService() ?: run {
-            Log.e(TAG, "Token expired or missing for $emailAddress in getUnreadInboxCount")
-            throw AuthExpiredException("Token missing for $emailAddress")
-        }
+        val service = getGmailService("getUnreadInboxCount")
 
         try {
             val response = service.users().threads().list("me")
@@ -194,27 +236,25 @@ class GmailServiceRepository(
             val count = resultEstimate?.toInt() ?: messages.size
             Log.d(TAG, "Calculated unread count for $emailAddress: $count")
             return@withContext Pair(count, false)
-        } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
-            if (e.statusCode == 401) {
-                Log.e(TAG, "Authentication expired (401) for $emailAddress")
-                throw AuthExpiredException("Authentication expired (401) for $emailAddress", e)
-            } else {
-                Log.e(TAG, "Google JSON exception in getUnreadInboxCount for $emailAddress: ${e.message}", e)
-                return@withContext Pair(0, false)
-            }
+        } catch (e: AccountAuthException) {
+            throw e
+        } catch (e: GoogleJsonResponseException) {
+            Log.e(TAG, "Google JSON exception (${e.statusCode}) in getUnreadInboxCount for $emailAddress: ${e.message}", e)
+            throw classifyHttpAuthException(e, "checking unread inbox count")
         } catch (e: Exception) {
             Log.e(TAG, "Exception in getUnreadInboxCount for $emailAddress: ${e.message}", e)
-            e.printStackTrace()
-            return@withContext Pair(0, false)
+            throw AccountAuthException(
+                title = "Gmail Sync Error",
+                reason = e.localizedMessage ?: "Unable to fetch unread inbox count for $emailAddress.",
+                howToFix = "Check your network connection and reconnect $emailAddress if the problem persists.",
+                cause = e
+            )
         }
     }
 
     override suspend fun getUnreadTodayCount(): Int = withContext(Dispatchers.IO) {
         Log.d(TAG, "getUnreadTodayCount called for $emailAddress")
-        val service = getGmailService() ?: run {
-            Log.e(TAG, "Token expired or missing for $emailAddress in getUnreadTodayCount")
-            throw AuthExpiredException("Token missing for $emailAddress")
-        }
+        val service = getGmailService("getUnreadTodayCount")
 
         try {
             val todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
@@ -226,18 +266,19 @@ class GmailServiceRepository(
             val count = response.resultSizeEstimate?.toInt() ?: (response.threads?.size ?: 0)
             Log.d(TAG, "Calculated unread today count for $emailAddress: $count")
             count
-        } catch (e: com.google.api.client.googleapis.json.GoogleJsonResponseException) {
-            if (e.statusCode == 401) {
-                Log.e(TAG, "Authentication expired (401) for $emailAddress in getUnreadTodayCount")
-                throw AuthExpiredException("Authentication expired (401) for $emailAddress", e)
-            } else {
-                Log.e(TAG, "Google JSON exception in getUnreadTodayCount for $emailAddress: ${e.message}", e)
-                return@withContext 0
-            }
+        } catch (e: AccountAuthException) {
+            throw e
+        } catch (e: GoogleJsonResponseException) {
+            Log.e(TAG, "Google JSON exception (${e.statusCode}) in getUnreadTodayCount for $emailAddress: ${e.message}", e)
+            throw classifyHttpAuthException(e, "checking today's unread count")
         } catch (e: Exception) {
             Log.e(TAG, "Exception in getUnreadTodayCount for $emailAddress: ${e.message}", e)
-            e.printStackTrace()
-            return@withContext 0
+            throw AccountAuthException(
+                title = "Gmail Sync Error",
+                reason = e.localizedMessage ?: "Unable to fetch today's unread count for $emailAddress.",
+                howToFix = "Check your network connection and reconnect $emailAddress if the problem persists.",
+                cause = e
+            )
         }
     }
 }

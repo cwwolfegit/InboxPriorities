@@ -1,25 +1,28 @@
 package com.polotech.inboxpriorities
 
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import java.util.UUID
-import android.content.Context
-
 import android.app.Application
+import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
-
+import androidx.lifecycle.viewModelScope
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.polotech.inboxpriorities.ContactCache.isContact
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.util.UUID
 
-import android.util.Log
-import com.polotech.inboxpriorities.ContactCache.isContact
+data class AccountAuthNotice(
+    val title: String,
+    val reason: String,
+    val howToFix: String
+)
 
 class MainViewModel(
     application: Application,
@@ -54,6 +57,7 @@ class MainViewModel(
         prefs.edit().putString("contact_priority_level", priority).apply()
         android.util.Log.d("NBX_Debug_ContactPriority", "Saved to SharedPreferences: ${prefs.getString("contact_priority_level", "NOT_FOUND")}")
     }
+
     val rules: StateFlow<List<PriorityRule>> = if (USE_MOCK_SCREENSHOT_DATA) {
         MutableStateFlow(
             listOf(
@@ -106,6 +110,8 @@ class MainViewModel(
 
     private val _accountErrors = MutableStateFlow<Map<String, String>>(emptyMap())
     val accountErrors: StateFlow<Map<String, String>> = _accountErrors.asStateFlow()
+    private val _accountAuthNotices = MutableStateFlow<Map<String, AccountAuthNotice>>(emptyMap())
+    val accountAuthNotices: StateFlow<Map<String, AccountAuthNotice>> = _accountAuthNotices.asStateFlow()
 
     private val _ruleError = MutableStateFlow<String?>(null)
     val ruleError: StateFlow<String?> = _ruleError.asStateFlow()
@@ -335,6 +341,37 @@ class MainViewModel(
         }
     }
 
+    private fun buildAuthNoticeFromException(account: EmailAccount, e: Throwable): AccountAuthNotice {
+        if (e is AccountAuthException) {
+            return AccountAuthNotice(
+                title = e.title,
+                reason = e.reason,
+                howToFix = e.howToFix
+            )
+        }
+
+        val message = e.localizedMessage.orEmpty()
+        return when {
+            e is AuthExpiredException -> AccountAuthNotice(
+                title = "Not Signed In",
+                reason = message.ifBlank { "Sign-in session expired or is missing for ${account.emailAddress}." },
+                howToFix = "Sign in to ${account.emailAddress} again to restore inbox access."
+            )
+            message.contains("403", ignoreCase = true) ||
+                    message.contains("insufficientPermissions", ignoreCase = true) ||
+                    message.contains("access_denied", ignoreCase = true) -> AccountAuthNotice(
+                title = "OAuth Permission Issue",
+                reason = "Google denied OAuth access for ${account.emailAddress}: ${message.ifBlank { "Missing or ungranted scope." }}",
+                howToFix = "Reconnect ${account.emailAddress} and approve Gmail read permission."
+            )
+            else -> AccountAuthNotice(
+                title = "Account Sync Issue",
+                reason = message.ifBlank { "Unable to verify sign-in or load mail for ${account.emailAddress}." },
+                howToFix = "Check your connection and sign in again to ${account.emailAddress}."
+            )
+        }
+    }
+
     // --- Gmail Sync Functions ---
 
     fun loadAllDefinedAccounts(context: Context, force: Boolean = false) {
@@ -386,6 +423,7 @@ class MainViewModel(
             _priorityUnreadCounts.value = newPriorityUnread
             _priorityTodayCounts.value = newPriorityToday
             _todayPriorityEmailsByAccount.value = allAccountPriorityMap
+            _accountAuthNotices.value = emptyMap()
             _isLoading.value = false
             hasLoadedAccountsOnStartup = true
             return
@@ -446,149 +484,150 @@ class MainViewModel(
                                 "Token lookup for '${account.emailAddress}' (${account.provider}): found = ${!token.isNullOrBlank()}"
                             )
 
-                            val shouldProcess = !token.isNullOrBlank() || account.provider == AccountProvider.OUTLOOK
-
-                            if (shouldProcess) {
-                                val effectiveToken = token ?: ""
-                                if (account.provider == AccountProvider.OUTLOOK && effectiveToken.isBlank()) {
-                                    android.util.Log.w("Debug_MainViewModel", "Outlook token is blank for ${account.emailAddress}, returning Sign-in Expired.")
-                                    return@async AccountFetchResult(
-                                        emailAddress = account.emailAddress,
-                                        error = "Sign-in Expired",
-                                        formattedCount = null,
-                                        unreadTodayStr = null,
-                                        totalPriorityStr = null,
-                                        todayPriorityStr = null,
-                                        sortedEmails = emptyList()
-                                    )
-                                }
-
-                                val emailRepo: EmailRepository = when (account.provider) {
-                                    AccountProvider.OUTLOOK -> OutlookEmailRepository(
-                                        emailAddress = account.emailAddress,
-                                        tokenProvider = {
-                                            prefs.getString("microsoft_access_token", null)
-                                        }
-                                    )
-                                    else -> GmailServiceRepository(
-                                        context = context,
-                                        emailAddress = account.emailAddress,
-                                        tokenProvider = { effectiveToken }
-                                    )
-                                }
-
-                                android.util.Log.d("Debug_MainViewModel", "Fetching unread counts for ${account.emailAddress}...")
-                                val unreadResult = emailRepo.getUnreadInboxCount()
-                                val unreadToday = emailRepo.getUnreadTodayCount()
-
-                                android.util.Log.d(
-                                    "Debug_MainViewModel",
-                                    "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
-                                )
-
-                                val recentEmails = emailRepo.fetchEmails(account.id)
-                                android.util.Log.d("Debug_MainViewModel", "Fetched ${recentEmails.size} recent emails for ${account.emailAddress}")
-
-                                if (unreadResult.first == -1 || unreadToday == -1) {
-                                    android.util.Log.w("Debug_MainViewModel", "Invalid unread count (-1) detected for ${account.emailAddress}, marking Sign-in Expired.")
-                                    AccountFetchResult(
-                                        emailAddress = account.emailAddress,
-                                        error = "Sign-in Expired",
-                                        formattedCount = null,
-                                        unreadTodayStr = null,
-                                        totalPriorityStr = null,
-                                        todayPriorityStr = null,
-                                        sortedEmails = emptyList()
+                            if (token.isNullOrBlank()) {
+                                val notice = if (account.provider == AccountProvider.OUTLOOK) {
+                                    AccountAuthNotice(
+                                        title = "Not Signed In",
+                                        reason = "No saved Microsoft sign-in token was found for ${account.emailAddress}.",
+                                        howToFix = "Sign in to ${account.emailAddress} to load Outlook counts."
                                     )
                                 } else {
-                                    // Load device contacts into cache so Contacts setting can match successfully
-                                    ContactCache.loadDeviceContacts(context, account.emailAddress)
-
-                                    val applicableRules = rules.value.filter { rule ->
-                                        android.util.Log.d("Debug_MainViewModel", "Rule '${rule.name}' targetAccountId: ${rule.targetAccountId}, current account.id: ${account.id}")
-                                        rule.targetAccountId == null || rule.targetAccountId == account.id
-                                    }
-
-                                    val calendar = java.util.Calendar.getInstance().apply {
-                                        set(java.util.Calendar.HOUR_OF_DAY, 0)
-                                        set(java.util.Calendar.MINUTE, 0)
-                                        set(java.util.Calendar.SECOND, 0)
-                                        set(java.util.Calendar.MILLISECOND, 0)
-                                    }
-                                    val startOfTodayMillis = calendar.timeInMillis
-
-                                    var totalPriorityCount = 0
-                                    var todayPriorityCount = 0
-                                    val accountPriorityEmails = mutableListOf<Email>()
-
-                                    Log.d("isPro_MainViewModel", "Evaluating with isPro.value: ${isPro.value}")
-                                    for (email in recentEmails) {
-                                        val (level, _) = PriorityEvaluator.evaluatePriority(
-                                            sender = email.sender,
-                                            subject = email.subject,
-                                            rules = applicableRules,
-                                            isPro = isPro.value,
-                                            contactPriority = contactPriority.value,
-                                            isContact = { cleanedEmail ->
-                                                isContact(account.emailAddress, cleanedEmail)
-                                            }
-                                        )
-
-                                        if (level != PriorityLevel.NONE) {
-                                            totalPriorityCount++
-                                            accountPriorityEmails.add(email.copy(priorityLevel = level))
-
-                                            if (email.timestamp >= startOfTodayMillis) {
-                                                todayPriorityCount++
-                                            }
-                                        }
-                                    }
-
-                                    val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
-                                    val sortedEmails = if (accountPriorityEmails.isNotEmpty()) {
-                                        accountPriorityEmails.sortedBy { email ->
-                                            when (email.priorityLevel) {
-                                                PriorityLevel.HIGH -> 0
-                                                PriorityLevel.MEDIUM -> 1
-                                                PriorityLevel.LOW -> 2
-                                                PriorityLevel.NONE -> 3
-                                            }
-                                        }
-                                    } else emptyList()
-
-                                    AccountFetchResult(
-                                        emailAddress = account.emailAddress,
-                                        error = null,
-                                        formattedCount = formattedCount,
-                                        unreadTodayStr = unreadToday.toString(),
-                                        totalPriorityStr = totalPriorityCount.toString(),
-                                        todayPriorityStr = todayPriorityCount.toString(),
-                                        sortedEmails = sortedEmails
+                                    AccountAuthNotice(
+                                        title = "Not Signed In",
+                                        reason = "No active Google OAuth token is available for ${account.emailAddress}.",
+                                        howToFix = "Sign in with ${account.emailAddress} and grant Gmail read permission."
                                     )
                                 }
-                            } else {
-                                android.util.Log.d(
-                                    "Debug_MainViewModel",
-                                    "SKIPPED API call for ${account.emailAddress}: No cached token available at startup."
+                                android.util.Log.w("Debug_MainViewModel", "Missing token for ${account.emailAddress}: ${notice.reason}")
+                                return@async AccountFetchResult(
+                                    emailAddress = account.emailAddress,
+                                    error = notice.title,
+                                    authNotice = notice,
+                                    formattedCount = null,
+                                    unreadTodayStr = null,
+                                    totalPriorityStr = null,
+                                    todayPriorityStr = null,
+                                    sortedEmails = emptyList()
                                 )
-                                null
                             }
-                        } catch (e: AuthExpiredException) {
-                            android.util.Log.w("Debug_MainViewModel", "Auth expired for ${account.emailAddress}: ${e.message}")
-                            AccountFetchResult(
-                                emailAddress = account.emailAddress,
-                                error = "Sign-in Expired",
-                                formattedCount = null,
-                                unreadTodayStr = null,
-                                totalPriorityStr = null,
-                                todayPriorityStr = null,
-                                sortedEmails = emptyList()
+
+                            val emailRepo: EmailRepository = when (account.provider) {
+                                AccountProvider.OUTLOOK -> OutlookEmailRepository(
+                                    emailAddress = account.emailAddress,
+                                    tokenProvider = {
+                                        prefs.getString("microsoft_access_token", null)
+                                    }
+                                )
+                                else -> GmailServiceRepository(
+                                    context = context,
+                                    emailAddress = account.emailAddress,
+                                    tokenProvider = { token }
+                                )
+                            }
+
+                            android.util.Log.d("Debug_MainViewModel", "Fetching unread counts for ${account.emailAddress}...")
+                            val unreadResult = emailRepo.getUnreadInboxCount()
+                            val unreadToday = emailRepo.getUnreadTodayCount()
+
+                            android.util.Log.d(
+                                "Debug_MainViewModel",
+                                "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
                             )
+
+                            val recentEmails = emailRepo.fetchEmails(account.id)
+                            android.util.Log.d("Debug_MainViewModel", "Fetched ${recentEmails.size} recent emails for ${account.emailAddress}")
+
+                            if (unreadResult.first == -1 || unreadToday == -1) {
+                                val notice = AccountAuthNotice(
+                                    title = "Not Signed In",
+                                    reason = "Gmail returned an invalid count status for ${account.emailAddress}, indicating a stale or invalid session.",
+                                    howToFix = "Reconnect ${account.emailAddress} to refresh your sign-in session."
+                                )
+                                android.util.Log.w("Debug_MainViewModel", "Invalid unread count (-1) detected for ${account.emailAddress}")
+                                AccountFetchResult(
+                                    emailAddress = account.emailAddress,
+                                    error = notice.title,
+                                    authNotice = notice,
+                                    formattedCount = null,
+                                    unreadTodayStr = null,
+                                    totalPriorityStr = null,
+                                    todayPriorityStr = null,
+                                    sortedEmails = emptyList()
+                                )
+                            } else {
+                                // Load device contacts into cache so Contacts setting can match successfully
+                                ContactCache.loadDeviceContacts(context, account.emailAddress)
+
+                                val applicableRules = rules.value.filter { rule ->
+                                    android.util.Log.d("Debug_MainViewModel", "Rule '${rule.name}' targetAccountId: ${rule.targetAccountId}, current account.id: ${account.id}")
+                                    rule.targetAccountId == null || rule.targetAccountId == account.id
+                                }
+
+                                val calendar = java.util.Calendar.getInstance().apply {
+                                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                    set(java.util.Calendar.MINUTE, 0)
+                                    set(java.util.Calendar.SECOND, 0)
+                                    set(java.util.Calendar.MILLISECOND, 0)
+                                }
+                                val startOfTodayMillis = calendar.timeInMillis
+
+                                var totalPriorityCount = 0
+                                var todayPriorityCount = 0
+                                val accountPriorityEmails = mutableListOf<Email>()
+
+                                Log.d("isPro_MainViewModel", "Evaluating with isPro.value: ${isPro.value}")
+                                for (email in recentEmails) {
+                                    val (level, _) = PriorityEvaluator.evaluatePriority(
+                                        sender = email.sender,
+                                        subject = email.subject,
+                                        rules = applicableRules,
+                                        isPro = isPro.value,
+                                        contactPriority = contactPriority.value,
+                                        isContact = { cleanedEmail ->
+                                            isContact(account.emailAddress, cleanedEmail)
+                                        }
+                                    )
+
+                                    if (level != PriorityLevel.NONE) {
+                                        totalPriorityCount++
+                                        accountPriorityEmails.add(email.copy(priorityLevel = level))
+
+                                        if (email.timestamp >= startOfTodayMillis) {
+                                            todayPriorityCount++
+                                        }
+                                    }
+                                }
+
+                                val formattedCount = if (unreadResult.second) "${unreadResult.first}+" else "${unreadResult.first}"
+                                val sortedEmails = if (accountPriorityEmails.isNotEmpty()) {
+                                    accountPriorityEmails.sortedBy { email ->
+                                        when (email.priorityLevel) {
+                                            PriorityLevel.HIGH -> 0
+                                            PriorityLevel.MEDIUM -> 1
+                                            PriorityLevel.LOW -> 2
+                                            PriorityLevel.NONE -> 3
+                                        }
+                                    }
+                                } else emptyList()
+
+                                AccountFetchResult(
+                                    emailAddress = account.emailAddress,
+                                    error = null,
+                                    authNotice = null,
+                                    formattedCount = formattedCount,
+                                    unreadTodayStr = unreadToday.toString(),
+                                    totalPriorityStr = totalPriorityCount.toString(),
+                                    todayPriorityStr = todayPriorityCount.toString(),
+                                    sortedEmails = sortedEmails
+                                )
+                            }
                         } catch (e: Exception) {
-                            android.util.Log.e("Debug_MainViewModel", "Exception caught while processing account ${account.emailAddress}", e)
+                            val notice = buildAuthNoticeFromException(account, e)
+                            android.util.Log.w("Debug_MainViewModel", "Account issue for ${account.emailAddress}: ${notice.title} - ${notice.reason}", e)
                             AccountFetchResult(
                                 emailAddress = account.emailAddress,
-                                error = "Error: ${e.localizedMessage ?: "Unknown exception"}",
+                                error = notice.title,
+                                authNotice = notice,
                                 formattedCount = null,
                                 unreadTodayStr = null,
                                 totalPriorityStr = null,
@@ -603,6 +642,7 @@ class MainViewModel(
                 android.util.Log.d("Debug_MainViewModel", "All account fetch jobs completed. Results count: ${results.size}")
 
                 val newErrors = _accountErrors.value.toMutableMap()
+                val newNotices = _accountAuthNotices.value.toMutableMap()
                 val newUnread = _unreadCounts.value.toMutableMap()
                 val newUnreadToday = _unreadTodayCounts.value.toMutableMap()
                 val newPriorityUnread = _priorityUnreadCounts.value.toMutableMap()
@@ -614,11 +654,13 @@ class MainViewModel(
                         android.util.Log.d("Debug_MainViewModel", "Skipping null result item.")
                         continue
                     }
-                    if (res.error != null) {
-                        android.util.Log.d("Debug_MainViewModel", "Result error for ${res.emailAddress}: ${res.error}")
-                        newErrors[res.emailAddress] = res.error
+                    if (res.error != null || res.authNotice != null) {
+                        android.util.Log.d("Debug_MainViewModel", "Result notice for ${res.emailAddress}: ${res.authNotice?.reason ?: res.error}")
+                        if (res.error != null) newErrors[res.emailAddress] = res.error
+                        if (res.authNotice != null) newNotices[res.emailAddress] = res.authNotice
                     } else {
                         newErrors.remove(res.emailAddress)
+                        newNotices.remove(res.emailAddress)
                         if (res.formattedCount != null) newUnread[res.emailAddress] = res.formattedCount
                         if (res.unreadTodayStr != null) newUnreadToday[res.emailAddress] = res.unreadTodayStr
                         if (res.totalPriorityStr != null) newPriorityUnread[res.emailAddress] = res.totalPriorityStr
@@ -630,6 +672,7 @@ class MainViewModel(
                 }
 
                 _accountErrors.value = newErrors
+                _accountAuthNotices.value = newNotices
                 _unreadCounts.value = newUnread
                 _unreadTodayCounts.value = newUnreadToday
                 _priorityUnreadCounts.value = newPriorityUnread
@@ -650,6 +693,7 @@ class MainViewModel(
     private data class AccountFetchResult(
         val emailAddress: String,
         val error: String?,
+        val authNotice: AccountAuthNotice?,
         val formattedCount: String?,
         val unreadTodayStr: String?,
         val totalPriorityStr: String?,
