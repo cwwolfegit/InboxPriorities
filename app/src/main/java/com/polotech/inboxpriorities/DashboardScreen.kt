@@ -1,6 +1,7 @@
 package com.polotech.inboxpriorities
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -9,31 +10,26 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
-
-import com.polotech.inboxpriorities.utils.openEmailInbox
-
-import android.app.Activity
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import com.polotech.inboxpriorities.utils.openEmailInbox
 
 enum class EmailFilterTab { TODAY, TOTAL }
 
@@ -52,6 +48,7 @@ fun DashboardScreen(
     val googleAuthHelper = remember { GoogleAuthHelper(context) }
     val isLoading by viewModel.isLoading.collectAsState()
     val accountErrors by viewModel.accountErrors.collectAsState()
+    val accountAuthNotices by viewModel.accountAuthNotices.collectAsState()
 
     val priorityUnreadMap by viewModel.priorityUnreadCounts.collectAsState()
     val priorityTodayMap by viewModel.priorityTodayCounts.collectAsState()
@@ -312,30 +309,81 @@ fun DashboardScreen(
                             account.emailAddress
                         }
                         val errorText = accountErrors[account.emailAddress]
+                        val authNotice = accountAuthNotices[account.emailAddress]
 
-                        if (errorText != null) {
+                        val triggerAccountAuth: () -> Unit = {
+                            if (account.provider == AccountProvider.OUTLOOK) {
+                                MicrosoftAuthHelper.startLogin(context)
+                            } else {
+                                val authRequest = googleAuthHelper.createAuthorizationRequest(account.emailAddress)
+                                googleAuthHelper.authClient.authorize(authRequest)
+                                    .addOnSuccessListener { authorizationResult ->
+                                        if (authorizationResult.accessToken != null) {
+                                            val newToken = authorizationResult.accessToken!!
+                                            viewModel.retryAccountAuth(account.emailAddress, newToken, context)
+                                        }
+                                    }
+                                    .addOnFailureListener { e ->
+                                        Log.e("Debug_Dashboard", "Failed to re-authorize Google account: ${account.emailAddress}", e)
+                                    }
+                            }
+                        }
+
+                        if (authNotice != null) {
+                            Surface(
+                                color = Color(0xFFFFF3E0),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { triggerAccountAuth() }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = authNotice.title,
+                                            color = Color(0xFFE65100),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = "Fix Authentication",
+                                            tint = Color(0xFFE65100),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+
+                                    Text(
+                                        text = authNotice.reason,
+                                        color = Color(0xFF4E342E),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+
+                                    Text(
+                                        text = authNotice.howToFix,
+                                        color = Color(0xFFBF360C),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        } else if (errorText != null) {
                             Surface(
                                 color = Color(0xFFFFCDD2),
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
-                                        if (account.provider == AccountProvider.OUTLOOK) {
-                                            MicrosoftAuthHelper.startLogin(context)
-                                        } else {
-                                            val authRequest = googleAuthHelper.createAuthorizationRequest(account.emailAddress)
-                                            googleAuthHelper.authClient.authorize(authRequest)
-                                                .addOnSuccessListener { authorizationResult ->
-                                                    if (authorizationResult.accessToken != null) {
-                                                        val newToken = authorizationResult.accessToken!!
-                                                        viewModel.retryAccountAuth(account.emailAddress, newToken, context)
-                                                    }
-                                                }
-                                                .addOnFailureListener { e ->
-                                                    android.util.Log.e("Debug_Dashboard", "Failed to re-authorize Google account: ${account.emailAddress}", e)
-                                                }
-                                        }
-                                    }
+                                    .clickable { triggerAccountAuth() }
                             ) {
                                 Row(
                                     modifier = Modifier
