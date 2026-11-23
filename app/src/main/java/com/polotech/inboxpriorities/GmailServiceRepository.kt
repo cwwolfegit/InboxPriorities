@@ -20,6 +20,7 @@ class AccountAuthException(
     val title: String,
     val reason: String,
     val howToFix: String,
+    val technicalDetail: String? = null,
     cause: Throwable? = null
 ) : AuthExpiredException("$title: $reason", cause)
 
@@ -35,6 +36,22 @@ class GmailServiceRepository(
 
     companion object {
         private const val TAG = "Debug_GmailRepo"
+    }
+
+    private fun captureTechnicalDetail(operation: String, e: Throwable): String {
+        val type = e::class.java.simpleName.ifBlank { "Exception" }
+        val msg = e.message ?: e.localizedMessage ?: "No message"
+        val causeInfo = e.cause?.let { c ->
+            " | Cause: ${c::class.java.simpleName}: ${c.message ?: "No message"}"
+        }.orEmpty()
+        val detail = "$operation -> $type: $msg$causeInfo"
+        DiagnosticLogger.record(
+            account = emailAddress,
+            operation = operation,
+            errorType = type,
+            message = "$msg$causeInfo"
+        )
+        return detail
     }
 
     private fun classifyHttpAuthException(e: GoogleJsonResponseException, operation: String): AccountAuthException {
@@ -198,10 +215,12 @@ class GmailServiceRepository(
             throw classifyHttpAuthException(e, "loading recent emails")
         } catch (e: Exception) {
             Log.e(TAG, "Exception in fetchRecentEmails for $emailAddress: ${e.message}", e)
+            val detail = captureTechnicalDetail("fetchRecentEmails", e)
             throw AccountAuthException(
                 title = "Gmail Sync Error",
                 reason = e.localizedMessage ?: "Failed to load recent emails for $emailAddress.",
-                howToFix = "Check your network connection and try reconnecting $emailAddress.",
+                howToFix = "Check your network connection and reconnect $emailAddress if the problem persists.",
+                technicalDetail = detail,
                 cause = e
             )
         }
@@ -243,10 +262,12 @@ class GmailServiceRepository(
             throw classifyHttpAuthException(e, "checking unread inbox count")
         } catch (e: Exception) {
             Log.e(TAG, "Exception in getUnreadInboxCount for $emailAddress: ${e.message}", e)
+            val detail = captureTechnicalDetail("getUnreadInboxCount", e)
             throw AccountAuthException(
                 title = "Gmail Sync Error",
                 reason = e.localizedMessage ?: "Unable to fetch unread inbox count for $emailAddress.",
                 howToFix = "Check your network connection and reconnect $emailAddress if the problem persists.",
+                technicalDetail = detail,
                 cause = e
             )
         }
@@ -273,10 +294,12 @@ class GmailServiceRepository(
             throw classifyHttpAuthException(e, "checking today's unread count")
         } catch (e: Exception) {
             Log.e(TAG, "Exception in getUnreadTodayCount for $emailAddress: ${e.message}", e)
+            val detail = captureTechnicalDetail("getUnreadTodayCount", e)
             throw AccountAuthException(
                 title = "Gmail Sync Error",
-                reason = e.localizedMessage ?: "Unable to fetch today's unread count for $emailAddress.",
+                reason = e.localizedMessage ?: "Unable to fetch today's unread count for $emailAddress. $emailAddress.",
                 howToFix = "Check your network connection and reconnect $emailAddress if the problem persists.",
+                technicalDetail = detail,
                 cause = e
             )
         }

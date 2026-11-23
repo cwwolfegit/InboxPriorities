@@ -21,7 +21,8 @@ import java.util.UUID
 data class AccountAuthNotice(
     val title: String,
     val reason: String,
-    val howToFix: String
+    val howToFix: String,
+    val technicalDetail: String? = null
 )
 
 class MainViewModel(
@@ -346,7 +347,8 @@ class MainViewModel(
             return AccountAuthNotice(
                 title = e.title,
                 reason = e.reason,
-                howToFix = e.howToFix
+                howToFix = e.howToFix,
+                technicalDetail = e.technicalDetail
             )
         }
 

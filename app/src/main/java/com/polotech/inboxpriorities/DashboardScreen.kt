@@ -2,7 +2,9 @@ package com.polotech.inboxpriorities
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,7 +24,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -32,6 +37,30 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.polotech.inboxpriorities.utils.openEmailInbox
 
 enum class EmailFilterTab { TODAY, TOTAL }
+
+private fun getAppVersionLabel(context: Context): String {
+    return try {
+        val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.packageManager.getPackageInfo(
+                context.packageName,
+                PackageManager.PackageInfoFlags.of(0)
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageInfo(context.packageName, 0)
+        }
+        val versionName = packageInfo.versionName ?: "unknown"
+        val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            packageInfo.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.versionCode.toLong()
+        }
+        "$versionName ($versionCode)"
+    } catch (_: Exception) {
+        "unknown"
+    }
+}
 
 @Composable
 fun DashboardScreen(
@@ -45,6 +74,8 @@ fun DashboardScreen(
     contactPriority: String = "NONE"
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val appVersionLabel = remember(context) { getAppVersionLabel(context) }
     val googleAuthHelper = remember { GoogleAuthHelper(context) }
     val isLoading by viewModel.isLoading.collectAsState()
     val accountErrors by viewModel.accountErrors.collectAsState()
@@ -330,6 +361,9 @@ fun DashboardScreen(
                         }
 
                         if (authNotice != null) {
+                            var showDetails by remember(account.emailAddress, authNotice) { mutableStateOf(false) }
+                            var copied by remember(account.emailAddress, authNotice) { mutableStateOf(false) }
+
                             Surface(
                                 color = Color(0xFFFFF3E0),
                                 shape = RoundedCornerShape(8.dp),
@@ -375,6 +409,40 @@ fun DashboardScreen(
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Medium
                                     )
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        if (!authNotice.technicalDetail.isNullOrBlank()) {
+                                            TextButton(onClick = { showDetails = !showDetails }) {
+                                                Text(if (showDetails) "Hide details" else "Technical details")
+                                            }
+                                        }
+                                        TextButton(
+                                            onClick = {
+                                                val report = DiagnosticLogger.buildReport(
+                                                    appVersion = appVersionLabel,
+                                                    activeNoticeSummary = "${authNotice.title} — ${authNotice.technicalDetail ?: authNotice.reason}"
+                                                )
+                                                clipboardManager.setText(AnnotatedString(report))
+                                                copied = true
+                                            }
+                                        ) {
+                                            Text(if (copied) "Copied!" else "Copy diagnostic info")
+                                        }
+                                    }
+
+                                    if (showDetails && !authNotice.technicalDetail.isNullOrBlank()) {
+                                        Text(
+                                            text = authNotice.technicalDetail,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontFamily = FontFamily.Monospace,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
                                 }
                             }
                         } else if (errorText != null) {
