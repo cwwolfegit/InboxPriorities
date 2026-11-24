@@ -6,6 +6,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -59,6 +62,31 @@ private fun getAppVersionLabel(context: Context): String {
         "$versionName ($versionCode)"
     } catch (_: Exception) {
         "unknown"
+    }
+}
+
+private const val SUPPORT_EMAIL = "InboxPriorities@outlook.com"
+
+private fun sendDiagnosticReportToSupport(
+    context: Context,
+    subjectDetail: String,
+    reportBody: String
+) {
+    val subject = "Support Needed: $subjectDetail"
+    val mailtoUri = Uri.parse(
+        "mailto:${Uri.encode(SUPPORT_EMAIL)}" +
+                "?subject=${Uri.encode(subject)}" +
+                "&body=${Uri.encode(reportBody)}"
+    )
+    val emailIntent = Intent(Intent.ACTION_SENDTO, mailtoUri)
+    try {
+        context.startActivity(Intent.createChooser(emailIntent, "Send diagnostic report"))
+    } catch (_: Exception) {
+        Toast.makeText(
+            context,
+            "Diagnostic info copied. No email app found to open automatically.",
+            Toast.LENGTH_LONG
+        ).show()
     }
 }
 
@@ -362,7 +390,7 @@ fun DashboardScreen(
 
                         if (authNotice != null) {
                             var showDetails by remember(account.emailAddress, authNotice) { mutableStateOf(false) }
-                            var copied by remember(account.emailAddress, authNotice) { mutableStateOf(false) }
+                            var sentToSupport by remember(account.emailAddress, authNotice) { mutableStateOf(false) }
 
                             Surface(
                                 color = Color(0xFFFFF3E0),
@@ -410,17 +438,12 @@ fun DashboardScreen(
                                         fontWeight = FontWeight.Medium
                                     )
 
-                                    Row(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(top = 8.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        verticalArrangement = Arrangement.spacedBy(2.dp)
                                     ) {
-                                        if (!authNotice.technicalDetail.isNullOrBlank()) {
-                                            TextButton(onClick = { showDetails = !showDetails }) {
-                                                Text(if (showDetails) "Hide details" else "Technical details")
-                                            }
-                                        }
                                         TextButton(
                                             onClick = {
                                                 val report = DiagnosticLogger.buildReport(
@@ -428,10 +451,28 @@ fun DashboardScreen(
                                                     activeNoticeSummary = "${authNotice.title} — ${authNotice.technicalDetail ?: authNotice.reason}"
                                                 )
                                                 clipboardManager.setText(AnnotatedString(report))
-                                                copied = true
-                                            }
+
+                                                val subjectReason = authNotice.reason.lineSequence().firstOrNull()?.take(80)
+                                                    ?: authNotice.title
+                                                sendDiagnosticReportToSupport(
+                                                    context = context,
+                                                    subjectDetail = subjectReason,
+                                                    reportBody = report
+                                                )
+                                                sentToSupport = true
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
                                         ) {
-                                            Text(if (copied) "Copied!" else "Copy diagnostic info")
+                                            Text(if (sentToSupport) "Sent!" else "Send to support")
+                                        }
+
+                                        if (!authNotice.technicalDetail.isNullOrBlank()) {
+                                            TextButton(
+                                                onClick = { showDetails = !showDetails },
+                                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
+                                            ) {
+                                                Text(if (showDetails) "Hide details" else "Technical details")
+                                            }
                                         }
                                     }
 
