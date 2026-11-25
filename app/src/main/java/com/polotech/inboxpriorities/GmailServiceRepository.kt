@@ -54,31 +54,37 @@ class GmailServiceRepository(
         return detail
     }
 
-    private fun classifyHttpAuthException(e: GoogleJsonResponseException, operation: String): AccountAuthException {
+    private fun classifyHttpAuthException(e: GoogleJsonResponseException, operation: String): AuthExpiredException {
         val details = e.details?.message ?: e.message.orEmpty()
         return when (e.statusCode) {
-            401 -> AccountAuthException(
-                title = "Not Signed In (Token Expired)",
-                reason = "Your sign-in session for $emailAddress expired or was rejected by Google ($operation).",
-                howToFix = "Sign in to $emailAddress again in the app to refresh your Gmail access token.",
+            401 -> AuthExpiredException(
+                message = "Your sign-in session for $emailAddress expired ($operation).",
                 cause = e
             )
-            403 -> AccountAuthException(
-                title = "OAuth Permission Denied",
-                reason = if (details.isNotBlank()) {
-                    "Google blocked Gmail access for $emailAddress: $details"
-                } else {
-                    "Gmail read permission was not granted, was revoked, or OAuth access is restricted for $emailAddress."
-                },
-                howToFix = "Reconnect $emailAddress and approve Gmail read access. If testing, ensure this account is added as a test user and the Play Store SHA-1 is registered in Google Cloud Console.",
-                cause = e
-            )
-            else -> AccountAuthException(
-                title = "Gmail API Error (${e.statusCode})",
-                reason = details.ifBlank { "Google rejected the Gmail request for $emailAddress (HTTP ${e.statusCode})." },
-                howToFix = "Check your account connection and try reconnecting $emailAddress.",
-                cause = e
-            )
+            403 -> {
+                val detail = captureTechnicalDetail(operation, e)
+                AccountAuthException(
+                    title = "OAuth Permission Denied",
+                    reason = if (details.isNotBlank()) {
+                        "Google blocked Gmail access for $emailAddress: $details"
+                    } else {
+                        "Gmail read permission was not granted, was revoked, or OAuth access is restricted for $emailAddress."
+                    },
+                    howToFix = "Reconnect $emailAddress and approve Gmail read access. If testing, ensure this account is added as a test user and the Play Store SHA-1 is registered in Google Cloud Console.",
+                    technicalDetail = detail,
+                    cause = e
+                )
+            }
+            else -> {
+                val detail = captureTechnicalDetail(operation, e)
+                AccountAuthException(
+                    title = "Gmail API Error (${e.statusCode})",
+                    reason = details.ifBlank { "Google rejected the Gmail request for $emailAddress (HTTP ${e.statusCode})." },
+                    howToFix = "Check your account connection and try reconnecting $emailAddress.",
+                    technicalDetail = detail,
+                    cause = e
+                )
+            }
         }
     }
 
@@ -297,7 +303,7 @@ class GmailServiceRepository(
             val detail = captureTechnicalDetail("getUnreadTodayCount", e)
             throw AccountAuthException(
                 title = "Gmail Sync Error",
-                reason = e.localizedMessage ?: "Unable to fetch today's unread count for $emailAddress. $emailAddress.",
+                reason = e.localizedMessage ?: "Unable to fetch today's unread count for $emailAddress.",
                 howToFix = "Check your network connection and reconnect $emailAddress if the problem persists.",
                 technicalDetail = detail,
                 cause = e

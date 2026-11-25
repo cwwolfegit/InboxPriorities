@@ -33,7 +33,7 @@ class MainViewModel(
     // --- SharedPreferences & Token Caches ---
     private val prefs = application.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
 
-    // --- State Flows (Declared first so they initialize before the init block) ---
+// --- State Flows (Declared first so they initialize before the init block) ---
 
     // Global in-memory pro state initialized from persistent storage
     private val _isPro = MutableStateFlow(prefs.getBoolean("is_pro_unlocked", false))
@@ -203,7 +203,7 @@ class MainViewModel(
     }
 
     fun cacheGoogleToken(email: String, idToken: String) {
-        android.util.Log.d("Debug_MainViewModel", "cacheGoogleToken called for email: '$email', token length: ${idToken.length}")
+        android.util.Log.d("Debug_MainViewModel", "cacheGoogleToken called for email: '$email', token length:${idToken.length}")
         if (email.isNotBlank() && idToken.isNotBlank()) {
             activeGoogleTokens[email] = idToken
             prefs.edit().putString("token_$email", idToken).apply()
@@ -213,7 +213,7 @@ class MainViewModel(
         }
     }
 
-    // --- Priority Rules Functions ---
+// --- Priority Rules Functions ---
 
     fun toggleRule(ruleToToggle: PriorityRule, isEnabled: Boolean) {
         viewModelScope.launch {
@@ -284,7 +284,7 @@ class MainViewModel(
         }
     }
 
-    // --- Account Management Functions ---
+// --- Account Management Functions ---
 
     fun clearAccountError() {
         _accountError.value = null
@@ -342,7 +342,7 @@ class MainViewModel(
         }
     }
 
-    private fun buildAuthNoticeFromException(account: EmailAccount, e: Throwable): AccountAuthNotice {
+    private fun buildAuthNoticeFromException(account: EmailAccount, e: Throwable): AccountAuthNotice? {
         if (e is AccountAuthException) {
             return AccountAuthNotice(
                 title = e.title,
@@ -352,18 +352,17 @@ class MainViewModel(
             )
         }
 
+        if (e is AuthExpiredException) {
+            return null
+        }
+
         val message = e.localizedMessage.orEmpty()
         return when {
-            e is AuthExpiredException -> AccountAuthNotice(
-                title = "Not Signed In",
-                reason = message.ifBlank { "Sign-in session expired or is missing for ${account.emailAddress}." },
-                howToFix = "Sign in to ${account.emailAddress} again to restore inbox access."
-            )
             message.contains("403", ignoreCase = true) ||
                     message.contains("insufficientPermissions", ignoreCase = true) ||
                     message.contains("access_denied", ignoreCase = true) -> AccountAuthNotice(
                 title = "OAuth Permission Issue",
-                reason = "Google denied OAuth access for ${account.emailAddress}: ${message.ifBlank { "Missing or ungranted scope." }}",
+                reason = "Google denied OAuth access for ${account.emailAddress}:${message.ifBlank { "Missing or ungranted scope." }}",
                 howToFix = "Reconnect ${account.emailAddress} and approve Gmail read permission."
             )
             else -> AccountAuthNotice(
@@ -374,7 +373,7 @@ class MainViewModel(
         }
     }
 
-    // --- Gmail Sync Functions ---
+// --- Gmail Sync Functions ---
 
     fun loadAllDefinedAccounts(context: Context, force: Boolean = false) {
 
@@ -449,7 +448,7 @@ class MainViewModel(
                 android.util.Log.d("Debug_MainViewModel", "--- START loadAllDefinedAccounts ---")
                 android.util.Log.d(
                     "Debug_MainViewModel",
-                    "Accounts in memory count: ${accounts.value.size}, details: ${accounts.value.map { it.emailAddress to it.provider }}"
+                    "Accounts in memory count: ${accounts.value.size}, details:${accounts.value.map { it.emailAddress to it.provider }}"
                 )
                 android.util.Log.d(
                     "Debug_MainViewModel",
@@ -474,7 +473,7 @@ class MainViewModel(
                         try {
                             android.util.Log.d(
                                 "Debug_MainViewModel",
-                                "Checking account: ${account.emailAddress} (ID: ${account.id}, Provider: ${account.provider})"
+                                "Checking account: ${account.emailAddress} (ID: ${account.id}, Provider:${account.provider})"
                             )
                             val token = when (account.provider) {
                                 AccountProvider.OUTLOOK -> prefs.getString("microsoft_access_token", null)
@@ -483,7 +482,7 @@ class MainViewModel(
 
                             android.util.Log.d(
                                 "Debug_MainViewModel",
-                                "Token lookup for '${account.emailAddress}' (${account.provider}): found = ${!token.isNullOrBlank()}"
+                                "Token lookup for '${account.emailAddress}' (${account.provider}): found =${!token.isNullOrBlank()}"
                             )
 
                             if (token.isNullOrBlank()) {
@@ -500,7 +499,7 @@ class MainViewModel(
                                         howToFix = "Sign in with ${account.emailAddress} and grant Gmail read permission."
                                     )
                                 }
-                                android.util.Log.w("Debug_MainViewModel", "Missing token for ${account.emailAddress}: ${notice.reason}")
+                                android.util.Log.w("Debug_MainViewModel", "Missing token for ${account.emailAddress}:${notice.reason}")
                                 return@async AccountFetchResult(
                                     emailAddress = account.emailAddress,
                                     error = notice.title,
@@ -533,11 +532,11 @@ class MainViewModel(
 
                             android.util.Log.d(
                                 "Debug_MainViewModel",
-                                "API Result for ${account.emailAddress} -> Count: ${unreadResult.first}, Plus: ${unreadResult.second}, Today: $unreadToday"
+                                "API Result for ${account.emailAddress} -> Count:${unreadResult.first}, Plus: ${unreadResult.second}, Today:$unreadToday"
                             )
 
                             val recentEmails = emailRepo.fetchEmails(account.id)
-                            android.util.Log.d("Debug_MainViewModel", "Fetched ${recentEmails.size} recent emails for ${account.emailAddress}")
+                            android.util.Log.d("Debug_MainViewModel", "Fetched ${recentEmails.size} recent emails for${account.emailAddress}")
 
                             if (unreadResult.first == -1 || unreadToday == -1) {
                                 val notice = AccountAuthNotice(
@@ -561,7 +560,7 @@ class MainViewModel(
                                 ContactCache.loadDeviceContacts(context, account.emailAddress)
 
                                 val applicableRules = rules.value.filter { rule ->
-                                    android.util.Log.d("Debug_MainViewModel", "Rule '${rule.name}' targetAccountId: ${rule.targetAccountId}, current account.id: ${account.id}")
+                                    android.util.Log.d("Debug_MainViewModel", "Rule '${rule.name}' targetAccountId: ${rule.targetAccountId}, current account.id:${account.id}")
                                     rule.targetAccountId == null || rule.targetAccountId == account.id
                                 }
 
@@ -625,10 +624,16 @@ class MainViewModel(
                             }
                         } catch (e: Exception) {
                             val notice = buildAuthNoticeFromException(account, e)
-                            android.util.Log.w("Debug_MainViewModel", "Account issue for ${account.emailAddress}: ${notice.title} - ${notice.reason}", e)
+                            val isSimpleSignIn = (e is AuthExpiredException && e !is AccountAuthException)
+                            android.util.Log.w(
+                                "Debug_MainViewModel",
+                                "Account issue for ${account.emailAddress}: ${notice?.title ?: "Tap to Sign-in!"} - ${notice?.reason ?: e.message}",
+                                e
+                            )
                             AccountFetchResult(
                                 emailAddress = account.emailAddress,
-                                error = notice.title,
+                                error = if (isSimpleSignIn) "Tap to Sign-in!" else notice?.title,
+                                signInPrompt = if (isSimpleSignIn) "Tap to Sign-in!" else null,
                                 authNotice = notice,
                                 formattedCount = null,
                                 unreadTodayStr = null,
@@ -656,10 +661,15 @@ class MainViewModel(
                         android.util.Log.d("Debug_MainViewModel", "Skipping null result item.")
                         continue
                     }
-                    if (res.error != null || res.authNotice != null) {
-                        android.util.Log.d("Debug_MainViewModel", "Result notice for ${res.emailAddress}: ${res.authNotice?.reason ?: res.error}")
-                        if (res.error != null) newErrors[res.emailAddress] = res.error
-                        if (res.authNotice != null) newNotices[res.emailAddress] = res.authNotice
+                    if (res.error != null || res.authNotice != null || res.signInPrompt != null) {
+                        android.util.Log.d("Debug_MainViewModel", "Result notice for ${res.emailAddress}:${res.authNotice?.reason ?: res.signInPrompt ?: res.error}")
+                        if (res.signInPrompt != null) {
+                            newErrors[res.emailAddress] = res.signInPrompt
+                            newNotices.remove(res.emailAddress)
+                        } else {
+                            if (res.error != null) newErrors[res.emailAddress] = res.error
+                            if (res.authNotice != null) newNotices[res.emailAddress] = res.authNotice
+                        }
                     } else {
                         newErrors.remove(res.emailAddress)
                         newNotices.remove(res.emailAddress)
@@ -695,6 +705,7 @@ class MainViewModel(
     private data class AccountFetchResult(
         val emailAddress: String,
         val error: String?,
+        val signInPrompt: String? = null,
         val authNotice: AccountAuthNotice?,
         val formattedCount: String?,
         val unreadTodayStr: String?,
@@ -728,4 +739,6 @@ class MainViewModel(
             }
         }
     }
+
+
 }
