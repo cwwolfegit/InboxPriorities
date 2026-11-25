@@ -356,14 +356,15 @@ class MainViewModel(
             return null
         }
 
+        val providerName = if (account.provider == AccountProvider.OUTLOOK) "Outlook" else "Gmail"
         val message = e.localizedMessage.orEmpty()
         return when {
             message.contains("403", ignoreCase = true) ||
                     message.contains("insufficientPermissions", ignoreCase = true) ||
                     message.contains("access_denied", ignoreCase = true) -> AccountAuthNotice(
                 title = "OAuth Permission Issue",
-                reason = "Google denied OAuth access for ${account.emailAddress}:${message.ifBlank { "Missing or ungranted scope." }}",
-                howToFix = "Reconnect ${account.emailAddress} and approve Gmail read permission."
+                reason = "$providerName denied OAuth access for ${account.emailAddress}:${message.ifBlank { "Missing or ungranted scope." }}",
+                howToFix = "Reconnect ${account.emailAddress} and approve$providerName read permission."
             )
             else -> AccountAuthNotice(
                 title = "Account Sync Issue",
@@ -373,7 +374,7 @@ class MainViewModel(
         }
     }
 
-// --- Gmail Sync Functions ---
+// --- Email Sync Functions ---
 
     fun loadAllDefinedAccounts(context: Context, force: Boolean = false) {
 
@@ -539,16 +540,13 @@ class MainViewModel(
                             android.util.Log.d("Debug_MainViewModel", "Fetched ${recentEmails.size} recent emails for${account.emailAddress}")
 
                             if (unreadResult.first == -1 || unreadToday == -1) {
-                                val notice = AccountAuthNotice(
-                                    title = "Not Signed In",
-                                    reason = "Gmail returned an invalid count status for ${account.emailAddress}, indicating a stale or invalid session.",
-                                    howToFix = "Reconnect ${account.emailAddress} to refresh your sign-in session."
-                                )
-                                android.util.Log.w("Debug_MainViewModel", "Invalid unread count (-1) detected for ${account.emailAddress}")
+                                val providerLabel = if (account.provider == AccountProvider.OUTLOOK) "Outlook" else "Gmail"
+                                android.util.Log.w("Debug_MainViewModel", "Invalid unread count (-1) detected for ${account.emailAddress} ($providerLabel)")
                                 AccountFetchResult(
                                     emailAddress = account.emailAddress,
-                                    error = notice.title,
-                                    authNotice = notice,
+                                    error = "Tap to Sign-in!",
+                                    signInPrompt = "Tap to Sign-in!",
+                                    authNotice = null,
                                     formattedCount = null,
                                     unreadTodayStr = null,
                                     totalPriorityStr = null,
