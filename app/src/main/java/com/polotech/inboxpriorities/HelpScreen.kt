@@ -27,6 +27,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+private const val HELP_SUPPORT_EMAIL = "InboxPriorities@outlook.com"
+
 data class FaqItem(val question: String, val answer: String)
 
 val faqList = listOf(
@@ -290,13 +292,16 @@ fun HelpScreen(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
                         try {
-                            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-                            val versionName = packageInfo.versionName ?: "1.0"
-                            val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                data = Uri.parse("mailto:")
-                                putExtra(Intent.EXTRA_SUBJECT, "Inbox Priorities Support - v$versionName")
-                            }
-                            context.startActivity(intent)
+                            val versionLabel = DiagnosticLogger.getAppVersionLabel(context)
+                            val body = DiagnosticLogger.buildHelpSupportEmailBody(context)
+                            val subject = "Inbox Priorities Support - $versionLabel"
+                            val mailtoUri = Uri.parse(
+                                "mailto:${Uri.encode(HELP_SUPPORT_EMAIL)}" +
+                                        "?subject=${Uri.encode(subject)}" +
+                                        "&body=${Uri.encode(body)}"
+                            )
+                            val intent = Intent(Intent.ACTION_SENDTO, mailtoUri)
+                            context.startActivity(Intent.createChooser(intent, "Contact Support"))
                         } catch (e: Exception) {
                             onContactSupportClick()
                         }
@@ -324,7 +329,8 @@ fun HelpScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(text = "About Inbox Priorities", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "Inbox Priorities lets you monitor your email inboxes for important messages using customizable sender and subject rules. The Dashboard displays unread priority-message counts for each configured inbox, along with total unread-message counts. Expand an inbox to preview its priority emails, then click any message to open it in your email client, where you can read and respond.")                    }
+                        Text(text = "Inbox Priorities lets you monitor your email inboxes for important messages using customizable sender and subject rules. The Dashboard displays unread priority-message counts for each configured inbox, along with total unread-message counts. Expand an inbox to preview its priority emails, then click any message to open it in your email client, where you can read and respond.")
+                    }
                 }
             }
         }

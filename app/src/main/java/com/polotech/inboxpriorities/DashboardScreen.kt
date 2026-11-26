@@ -448,7 +448,8 @@ fun DashboardScreen(
                                             onClick = {
                                                 val report = DiagnosticLogger.buildReport(
                                                     appVersion = appVersionLabel,
-                                                    activeNoticeSummary = "${authNotice.title} — ${authNotice.technicalDetail ?: authNotice.reason}"
+                                                    activeNoticeSummary = "${authNotice.title} — ${authNotice.technicalDetail ?: authNotice.reason}",
+                                                    context = context
                                                 )
                                                 clipboardManager.setText(AnnotatedString(report))
 
