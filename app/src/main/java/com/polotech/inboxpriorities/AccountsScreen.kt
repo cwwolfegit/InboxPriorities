@@ -408,9 +408,7 @@ fun AccountManagementCard(
     onEdit: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val providerName = account.provider.name.lowercase().replaceFirstChar { it.uppercase() }
     val displayName = account.nickname.ifBlank { account.emailAddress }
-    val isGmail = account.provider == AccountProvider.GMAIL
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -424,7 +422,7 @@ fun AccountManagementCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Line 1: Account Name/Nickname + Provider Badge
+            // Line 1: Account Name/Nickname + Shared Provider Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -437,19 +435,7 @@ fun AccountManagementCard(
                     modifier = Modifier.weight(1f, fill = false)
                 )
 
-                // Provider Badge (S-02)
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isGmail) Color(0xFFE8F5E9) else Color(0xFFE3F2FD)
-                ) {
-                    Text(
-                        text = if (isGmail) "✉️ Gmail" else "📧 Outlook",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isGmail) Color(0xFF2E7D32) else Color(0xFF1565C0),
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
+                ProviderBadge(provider = account.provider)
             }
 
             // Line 2: Email Address

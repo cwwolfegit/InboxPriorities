@@ -127,9 +127,10 @@ object DiagnosticLogger {
     @Synchronized
     fun buildHelpSupportEmailBody(context: Context): String {
         val sb = StringBuilder()
-        sb.appendLine("Please describe your question or issue above this line.")
+        sb.appendLine("Please describe your question or issue and include all helpful screenshots.")
         sb.appendLine()
-        sb.appendLine("=== System & App Info ===")
+        sb.appendLine("=== System & App Info (Do not remove or alter.) ===")
+        sb.appendLine()
         sb.appendLine(buildEnvironmentHeader(context))
         if (events.isNotEmpty()) {
             val latest = events.last()

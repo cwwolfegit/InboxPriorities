@@ -91,6 +91,23 @@ private fun sendDiagnosticReportToSupport(
 }
 
 @Composable
+fun ProviderBadge(provider: AccountProvider) {
+    val isGmail = provider == AccountProvider.GMAIL
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = if (isGmail) Color(0xFFE8F5E9) else Color(0xFFE3F2FD)
+    ) {
+        Text(
+            text = if (isGmail) "✉️ Gmail" else "📧 Outlook",
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isGmail) Color(0xFF2E7D32) else Color(0xFF1565C0),
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+    }
+}
+
+@Composable
 fun DashboardScreen(
     viewModel: MainViewModel,
     billingViewModel: BillingViewModel = viewModel(),
@@ -361,12 +378,7 @@ fun DashboardScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        val providerLabel = account.provider.name.lowercase().replaceFirstChar { it.uppercase() }
-                        val titleText = if (account.nickname.isNotBlank()) {
-                            "${account.nickname} ($providerLabel)"
-                        } else {
-                            account.emailAddress
-                        }
+                        val titleText = account.nickname.ifBlank { account.emailAddress }
                         val errorText = accountErrors[account.emailAddress]
                         val authNotice = accountAuthNotices[account.emailAddress]
 
@@ -518,26 +530,34 @@ fun DashboardScreen(
                             }
                         }
 
-                        // Header Row with Title and Reorder Controls
+                        // Header Row with Title, Provider Badge, and Reorder Controls
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = titleText,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-
-                                if (account.nickname.isNotBlank()) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
-                                        text = account.emailAddress,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        text = titleText,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
                                     )
+
+                                    if (account.nickname.isNotBlank()) {
+                                        Text(
+                                            text = account.emailAddress,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
+
+                                ProviderBadge(provider = account.provider)
                             }
 
                             // Reordering controls (Move Up / Move Down with a Drag Handle)
